@@ -1,0 +1,89 @@
+{
+    "file_name": "slm_testing_json",
+
+    "instance_type": {
+        "num_parts": 1,
+        "num_orientations": 2,
+        "type_parts": 1
+    },
+
+    "machine_params": {
+        "build_lwh": [1.0, 1.0, 1.0], 
+        "power_subsystems": {
+            "basic_subsystem": 1,
+            "platform_heater": 1,
+            "water_cooling_unit": 1,
+            "water_circulation_unit": 1,
+            "laser_scanning_border": 1,
+            "laser_filling_contour": 1,
+            "laser_volume_hatching": 1,
+            "laser_supports_building": 1,
+            "recoater_motor": 1,
+            "electric_valves": 1,
+            "gas_circulation_pump_motor": 1
+        },  
+        "power_coefficient": {
+            "column_names": [
+                "preheating",
+                "scanning_border",
+                "filling_contour",
+                "volume_hatching",
+                "supports_soliding",
+                "recoating",
+                "cooling"
+            ],
+            "rows": {
+                "basic_subsystem": [1, 2, 3, 4, 5, 6, 7],
+                "platform_heater": [1, 2, 3, 4, 5, 6, 7],
+                "water_cooling_unit": [1, 2, 3, 4, 5, 6, 7],
+                "water_circulation_unit": [1, 2, 3, 4, 5, 6, 7],
+                "laser_scanning_border": [1, 2, 3, 4, 5, 6, 7],
+                "laser_filling_contour": [1, 2, 3, 4, 5, 6, 7],
+                "laser_volume_hatching": [1, 2, 3, 4, 5, 6, 7],
+                "laser_supports_building": [1, 2, 3, 4, 5, 6, 7],
+                "recoater_motor": [1, 2, 3, 4, 5, 6, 7],
+                "electric_valves": [1, 2, 3, 4, 5, 6, 7],
+                "gas_circulation_pump_motor": [1, 2, 3, 4, 5, 6, 7]
+            }
+        }
+    },
+
+    "process_params": {
+        "min_distance_parts": 1, 
+        "min_distance_part_platform": 1,
+        "num_laser": 1,
+        "hatch_distance_volume": 1,
+        "hatch_distance_support": 1, 
+        "laser_speed_border": 1,
+        "laser_speed_contour": 1, 
+        "laser_speed_volume": 1,
+        "laser_speed_support": 1, 
+        "layer_thickness": 1,
+        "heat_time": 1,
+        "cool_time": 1
+    },
+
+    "part_info": [
+        {
+            "part_type": 1,
+            "num_part": 1,
+            "volume": 1,
+            "surface_area": 1,
+            "build_params": [
+                {"O": 1, "L": 1, "W": 1, "H": 1, "S": 1},
+                {"O": 2, "L": 1, "W": 1, "H": 1, "S": 1}
+            ]
+        },
+
+        {
+            "part_type": 2,
+            "num_part": 1,
+            "volume": 1,
+            "surface_area": 1,
+            "build_params": [
+                {"O": 1, "L": 1, "W": 1, "H": 1, "S": 1},
+                {"O": 2, "L": 1, "W": 1, "H": 1, "S": 1}
+            ]
+        }
+    ]
+}
