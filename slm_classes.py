@@ -3,6 +3,11 @@ import numpy as np
 import pandas as pd
 import json
 from pprint import pprint
+from operator import add
+from functools import reduce
+
+import torch
+from torch import Tensor
 
 class ItemFromJson:
     def __init__(self) -> None:
@@ -19,29 +24,6 @@ class ItemFromJson:
                             else ((x[0], [k.__dict__ for k in x[1]]) if isinstance(x[1], List)\
                                 else x), 
                         self.__dict__.items())))
-
-def load_json_to_class(path: str) -> dict:
-    with open(path, 'r') as f:
-        json_dict = json.load(f)
-    
-    # pprint(json_dict)
-    
-    instance_json = Instance()
-    machine_json = Machine()
-    process_json = Process()
-    
-    instance_json.get_from_dict(json_dict["instance_type"])
-    machine_json.get_from_dict(json_dict["machine_params"])
-    process_json.get_from_dict(json_dict["process_params"])
-    parts = [Part(d) for d in json_dict["part_info"]]
-    
-    metadata = MetaData()
-    metadata.load(instance=instance_json, 
-                  machine=machine_json,
-                  process=process_json,
-                  parts=parts)
-    
-    return metadata
 
 # instance class. for getting instance info from json file.
 class Instance(ItemFromJson):
@@ -103,11 +85,16 @@ class Part(ItemFromJson):
 
 # collects all data in one json file.
 class MetaData(ItemFromJson):
-    def __init__(self) -> None:
+    def __init__(self, max_part_type: int = 20, max_orientation_num: int = 7) -> None:
+        self.max_part_type = max_part_type
+        self.max_orientation_num = max_orientation_num
+        
         self.instance = None
         self.machine = None
         self.process = None
         self.parts: List[Part] = None
+        
+        self.mask_mtx = None
     
     def load(self, 
              instance: Instance, 
@@ -119,11 +106,74 @@ class MetaData(ItemFromJson):
         self.machine = machine
         self.process = process
         self.parts = parts
-    
+        
+        self.mask_mtx = self.mask_matrix()
+        
     def get_from_dict(self, d: dict) -> None:
         raise NotImplementedError
+    
+    # get a vector indicating the part information
+    def part_vec(self, part_id: int) -> Tensor:
+        max_vec_len = 3 + 4*self.max_orientation_num
+        
+        if part_id >= len(self.parts):
+            return torch.zeros(int(max_vec_len))
+        
+        selected_part = self.parts[part_id]
+        
+        info_list = [selected_part.num_part, selected_part.volume, selected_part.surface_area]\
+                        + list(reduce(add, ([ori['L'], ori['W'], ori['H'], ori['S']] for ori in selected_part.build_params)))
+        
+        info_list.extend([0 for _ in range(max_vec_len - len(info_list))])
+        
+        return torch.tensor(info_list)
+                        
+    def mask_vec(self, part_id: int) -> Tensor:
+        out_vec = torch.zeros(self.max_orientation_num)
+        
+        if part_id >= len(self.parts):
+            return out_vec
+        
+        orient_num = len(self.parts[part_id].build_params)
+        out_vec[:orient_num] = 1
+        return out_vec
+    
+    # get mask_dict of this instance
+    def init_state(self) -> Tensor:
+        return torch.stack([self.part_vec(i) for i in range(self.max_part_type)], dim=0)
+    
+    def init_state(self) -> Tensor:
+        return torch.stack([self.mask_vec(i) for i in range(self.max_part_type)], dim=0)
+
+def load_json_to_class(path: str) -> MetaData:
+    with open(path, 'r') as f:
+        json_dict = json.load(f)
+    
+    # pprint(json_dict)
+    
+    instance_json = Instance()
+    machine_json = Machine()
+    process_json = Process()
+    
+    instance_json.get_from_dict(json_dict["instance_type"])
+    machine_json.get_from_dict(json_dict["machine_params"])
+    process_json.get_from_dict(json_dict["process_params"])
+    parts = [Part(d) for d in json_dict["part_info"]]
+    
+    metadata = MetaData()
+    metadata.load(instance=instance_json, 
+                  machine=machine_json,
+                  process=process_json,
+                  parts=parts)
+    
+    return metadata
 
 if __name__ == "__main__":
     
-    load_json_to_class("./test.json").show()
+    torch.set_printoptions(precision=1, sci_mode=False)
+    
+    metadata = load_json_to_class(r".\instances_json\ec_30-1.json")
+    
+    print(metadata.init_state())
+    print(metadata.mask_matrix())
     
