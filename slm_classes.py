@@ -12,6 +12,37 @@ class ItemFromJson:
         for k,v in d.items():
             setattr(self, k, v)
     
+    def show(self) -> None:
+        # pprint(self.__dict__.items())
+        
+        pprint(list(map(lambda x: (x[0], x[1].__dict__) if isinstance(x[1], ItemFromJson)\
+                            else ((x[0], [k.__dict__ for k in x[1]]) if isinstance(x[1], List)\
+                                else x), 
+                        self.__dict__.items())))
+
+def load_json_to_class(path: str) -> dict:
+    with open(path, 'r') as f:
+        json_dict = json.load(f)
+    
+    # pprint(json_dict)
+    
+    instance_json = Instance()
+    machine_json = Machine()
+    process_json = Process()
+    
+    instance_json.get_from_dict(json_dict["instance_type"])
+    machine_json.get_from_dict(json_dict["machine_params"])
+    process_json.get_from_dict(json_dict["process_params"])
+    parts = [Part(d) for d in json_dict["part_info"]]
+    
+    metadata = MetaData()
+    metadata.load(instance=instance_json, 
+                  machine=machine_json,
+                  process=process_json,
+                  parts=parts)
+    
+    return metadata
+
 # instance class. for getting instance info from json file.
 class Instance(ItemFromJson):
     def __init__(self) -> None:
@@ -61,38 +92,38 @@ class Process(ItemFromJson):
 
 # collects params for each part
 class Part(ItemFromJson):
-    def __init__(self) -> None:
+    def __init__(self, d: dict) -> None:
         self.part_type = None
         self.num_part = None
         self.volume = None
         self.surface_area = None
         self.build_params: List[dict] = None
+        
+        self.get_from_dict(d)
 
 # collects all data in one json file.
-class MetaData:
+class MetaData(ItemFromJson):
     def __init__(self) -> None:
-        self.instance = Instance()
-        self.machine = Machine()
-        self.process = Process()
-        self.parts: List[Part] = []
+        self.instance = None
+        self.machine = None
+        self.process = None
+        self.parts: List[Part] = None
     
-    def load(self, d:dict) -> None:
-        ...
-
-
+    def load(self, 
+             instance: Instance, 
+             machine: Machine, 
+             process: Process, 
+             parts: List[Part],
+             ) -> None:
+        self.instance = instance
+        self.machine = machine
+        self.process = process
+        self.parts = parts
+    
+    def get_from_dict(self, d: dict) -> None:
+        raise NotImplementedError
 
 if __name__ == "__main__":
     
-    with open("./test.json", 'r') as f:
-        json_dict = json.load(f)
-    
-    pprint(json_dict)
-    
-    instance_json = Instance()
-    machine_json = Machine()
-    process_json = Process()
-    
-    instance_json.get_from_dict(json_dict["instance_type"])
-    machine_json.get_from_dict(json_dict["machine_params"])
-    process_json.get_from_dict(json_dict["process_params"])
+    load_json_to_class("./test.json").show()
     
