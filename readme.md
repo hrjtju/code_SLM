@@ -13,6 +13,10 @@
 
 ### 2 Training
 
+[ ] Adjusting config files or source code of joyrl to run the model
+[ ] Test running and result analysis
+[ ] Experiments on various training data & DRL models
+
 ### 3 Fixing generalization issues
 
 
