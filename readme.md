@@ -1,12 +1,22 @@
 # SLM machine makespan & energy cost optimization using deep reinforcement learning
 
-# Problem Statement
+## Todo List
+
+### 1 Settling up environment
+[ ] as
+
+### 2 Training
+
+### 3 Fixing generalization issues
 
 
-# Training Instances
+## Problem Statement
 
 
-# Definition of Markov Decision Process
+## Training Instances
+
+
+## Definition of Markov Decision Process
 
 
 
