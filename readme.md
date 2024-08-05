@@ -10,7 +10,6 @@
 - [ ] state transition
 - [ ] action effects
 - [ ] reward assignment
-asd
 
 ### 2 Training
 
