@@ -42,3 +42,7 @@ joyrl/*
 false/*
 experiment-related-model/*
 
+# Produced/Rendered Files
+*.html
+readme.pdf
+

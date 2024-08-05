@@ -149,8 +149,6 @@ def load_json_to_class(path: str) -> MetaData:
     with open(path, 'r') as f:
         json_dict = json.load(f)
     
-    # pprint(json_dict)
-    
     instance_json = Instance()
     machine_json = Machine()
     process_json = Process()
