@@ -1,9 +1,12 @@
+from typing import Any, Tuple
 from torch import Tensor as Tensor
+
+from slm_classes import Part
 
 
 def allocate_bin_packing_2d(
-    batch: Tensor,
-    part_id: int, 
-    batch_id: int
-    ) -> Tensor:
+    batch: Any,
+    part: Part, 
+    orientation: int, 
+    ) -> Tuple[Any, bool]:
     ...

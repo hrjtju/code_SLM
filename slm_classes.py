@@ -82,6 +82,27 @@ class Part(ItemFromJson):
         self.build_params: List[dict] = None
         
         self.get_from_dict(d)
+    
+    def get_proj_area(self, orientation: int) -> float:
+        """
+        Returns the projection area given orientation.
+        """
+        # TODO: Check if this statement is correct
+        return self.build_params[orientation]["L"] * self.build_params[orientation]["W"]
+    
+    def get_part_info(self, orientation: int) -> dict:
+        """
+        Returns a specific dict when orientation is specified for batch state.
+        """
+        build_param = self.build_params[orientation]
+        return {
+            "volume": self.volume,
+            "surface_ares": self.surface_area,
+            "L": build_param["L"],
+            "W": build_param["W"],
+            "H": build_param["H"],
+            "S": build_param["S"],
+        }      
 
 # collects all data in one json file.
 class MetaData(ItemFromJson):

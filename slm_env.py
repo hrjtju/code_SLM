@@ -1,10 +1,107 @@
-from typing import Tuple
+from typing import Any, Tuple, List, Literal
 import torch
 from torch import Tensor as Tensor
 import joyrl
 
-from slm_classes import load_json_to_class
+from slm_classes import Part, load_json_to_class
 from bin_packing import allocate_bin_packing_2d
+
+class Batch:
+    """
+    A Batch contains:
+        - A TRUE INSTANCE of 2d-bin (for bin-packing algorithm)
+        - A discretized VIEW of the 2d-bin (for neural network)
+        - A container containing information of parts allocated to this batch,
+            - each item of which contains the original dict of the category(kind) 
+              the part belongs to with `build_param` equaling the value 
+              corresponding the orientation chosen
+    """
+    def __init__(self, L, W, H, grid_length) -> None:
+        self.L = L
+        self.W = W
+        self.H = H
+        self.grid_length = grid_length
+        
+        self.bin_true: Any = None # depends on the packing algorithm
+        self.bin_view: Tensor = None # should finally be a fixed size tensor
+        self.parts_info: List[Part] = []
+    
+    def get_current_view(self) -> Tensor:
+        """
+        Returns the current view of the batch as one of the neural network inputs
+        """
+        ...
+    
+    def get_rest_area(self) -> float:
+        """
+        Returns rest area of a batch
+        """
+        ...
+    
+    def add_part(self, part: Part, orientation: int) -> bool:
+        """
+        Add part to this batch.
+        
+        Returns
+            - `True`  , if part is successfully added
+            - `False` , otherwise
+        """
+        
+        # Checks if the projection area of the part is smaller than the 
+        # area available in this batch.
+        if part.get_proj_area(orientation) < self.get_rest_area():
+            return False
+        
+        # Try to add the part into the batch using the bin-packing algorithm
+        # If it cannot be packed, return False.
+        self.bin_true, success = allocate_bin_packing_2d(self.bin_true, part, orientation)
+        
+        if success:
+            # Update the current view
+            self.bin_view = self.get_current_view()
+            # update list parts_info 
+            self.parts_info.append(part.get_part_info(orientation))
+            return True
+        else:
+            # don't update anything
+            return False
+
+class Solution:
+    """
+    A Solution to a instance contains multiple batches.
+    """
+    def __init__(self, grid_length) -> None:
+        self.grid_length = grid_length
+        self.batches: List[Batch] = []
+    
+    def add_batch(self, L, W, H) -> None:
+        """
+        Add an empty batch to the solution
+        """
+        self.batches.append(Batch(L, W, H, self.grid_length))
+    
+    def get_batch(self) -> Batch:
+        """
+        Get the current batch
+        """
+        assert len(self.batches) > 0, "There is no batches in this solution!"
+        return self.batches[-1]
+    
+    def add_part(self, part: Part, orientation: int) -> None:
+        """
+        Try to add the part to the current batch
+        """
+        success = self.get_batch().add_part(part, orientation)
+        
+        # TODO: Check the seq logic
+        if not success:
+            self.add_batch()
+            s = self.get_batch().add_part(part, orientation)
+            
+            if not s:
+                return False
+        else:
+            return True
 
 # only supports assigning a part to a batch
 # and the 2D bin packing algorithm puts the part into a target position
@@ -14,7 +111,13 @@ class SLMEnv:
     """
     
     # load instance-meta data
-    def __init__(self, random=True, in_path=None, phase="Train", grid_length=1, num_batches=10, **kwargs):
+    def __init__(self, 
+                 random: bool = True, 
+                 in_path: str = None, 
+                 phase: Literal["Train", "Test"] = "Train", 
+                 grid_length: float =1, 
+                 **kwargs
+                 ):
         self.phase = phase
         
         # if random == True, ignore the in_path
@@ -43,23 +146,30 @@ class SLMEnv:
         # TODO: i.e. (number&types of parts, positions and orientations)
         
         # observation of the current batch
-        self.curr_state = torch.zeros(size=(
-            num_batches, 
-            metadata.machine.build_l // grid_length,
-            metadata.machine.build_w // grid_length,
-            metadata.machine.build_h // grid_length,
-        ))
+        # TODO: Redefine State
     
     # calculate power cost
     def calculate_power(self) -> float:
+        """
+        Calculate the power needed for the solution UNTIL NOW
+        """
         ...
     
     # calculate time cost
     def calculate_time(self) -> float:
+        """
+        Calculate the time needed for the solution UNTIL NOW
+        """
         ...
     
     # verify physical constraints
-    def check_constraints(self) -> float:
+    def check_geo_constraints(self) -> float:
+        """
+        Used only if DRL model is allowed to determine 
+        the position and orientation of a part in a batch.
+        
+        Checks if the allocation meets the geometry constraints.
+        """
         ...
     
     def reset(self, seed = 0):
