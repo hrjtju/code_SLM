@@ -142,7 +142,7 @@ class MetaData(ItemFromJson):
     def init_state(self) -> Tensor:
         return torch.stack([self.part_vec(i) for i in range(self.max_part_type)], dim=0)
     
-    def init_state(self) -> Tensor:
+    def mask_matrix(self) -> Tensor:
         return torch.stack([self.mask_vec(i) for i in range(self.max_part_type)], dim=0)
 
 def load_json_to_class(path: str) -> MetaData:
@@ -172,8 +172,8 @@ if __name__ == "__main__":
     
     torch.set_printoptions(precision=1, sci_mode=False)
     
-    metadata = load_json_to_class(r".\instances_json\ec_30-1.json")
+    metadata = load_json_to_class(r"./instances_json/ec_30-1.json")
     
     print(metadata.init_state())
-    print(metadata.mask_matrix())
+    print(metadata.mask_mtx)
     
