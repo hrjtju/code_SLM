@@ -1,7 +1,9 @@
-from typing import Any, Tuple, List, Literal
+from typing import Any, Dict, Tuple, List, Literal
 import torch
 from torch import Tensor as Tensor
 import joyrl
+from rectpack import newPacker, PackingMode
+from math import ceil, floor
 
 from slm_classes import Part, load_json_to_class
 from bin_packing import allocate_bin_packing_2d
@@ -16,27 +18,55 @@ class Batch:
               the part belongs to with `build_param` equaling the value 
               corresponding the orientation chosen
     """
-    def __init__(self, L, W, H, grid_length) -> None:
+    def __init__(self, 
+                 L: float, 
+                 W: float, 
+                 H: float, 
+                 view_shape: tuple
+                 ) -> None:
         self.L = L
         self.W = W
         self.H = H
-        self.grid_length = grid_length
+        self.view_shape = view_shape
         
-        self.bin_true: Any = None # depends on the packing algorithm
+        # Trial, Using RectPack Algorithm
+        self.bin_true = newPacker(mode=PackingMode.Online,
+                                       rotation=False
+                                       ) # depends on the packing algorithm
+        self.bin_true.add_bin(width=self.L, height=self.W)
         self.bin_view: Tensor = None # should finally be a fixed size tensor
-        self.parts_info: List[Part] = []
+        
+        # {
+        #     "volume": self.volume,
+        #     "surface_ares": self.surface_area,
+        #     "L": build_param["L"]+gap,
+        #     "W": build_param["W"]+gap,
+        #     "H": build_param["H"],
+        #     "S": build_param["S"],
+        # } 
+        self.parts_info: List[dict] = []
     
     def get_current_view(self) -> Tensor:
         """
         Returns the current view of the batch as one of the neural network inputs
         """
-        ...
+        grid = torch.zeros(size=tuple(map(ceil, 
+                                          (self.L, self.W))))
+        for (c, x, y, w, h, _) in self.bin_true.rect_list():
+            grid[floor(x):ceil(x+w), floor(y):ceil(y+h)] = 1
+            grid[floor(x+1):ceil(x+w-1), floor(y+1):floor(y+h-1)] = -1
+        
+        grid = torch.nn.functional.interpolate(grid, size=self.view_shape, mode="bilinear")
+        
+        return grid
     
     def get_rest_area(self) -> float:
         """
         Returns rest area of a batch
         """
-        ...
+        total_area = self.L * self.W
+        occupied_area = sum(map(lambda x:x["L"]*x["W"], self.parts_info))
+        return total_area - occupied_area
     
     def add_part(self, part: Part, orientation: int) -> bool:
         """
@@ -54,7 +84,7 @@ class Batch:
         
         # Try to add the part into the batch using the bin-packing algorithm
         # If it cannot be packed, return False.
-        self.bin_true, success = allocate_bin_packing_2d(self.bin_true, part, orientation)
+        self.bin_true, success = allocate_bin_packing_2d(self.bin_true, part.get_part_info(orientation))
         
         if success:
             # Update the current view

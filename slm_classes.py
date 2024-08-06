@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Self
 import numpy as np
 import pandas as pd
 import json
@@ -80,17 +80,22 @@ class Part(ItemFromJson):
         self.volume = None
         self.surface_area = None
         self.build_params: List[dict] = None
+        # self.orientation = None
         
         self.get_from_dict(d)
     
-    def get_proj_area(self, orientation: int) -> float:
-        """
-        Returns the projection area given orientation.
-        """
-        # TODO: Check if this statement is correct
-        return self.build_params[orientation]["L"] * self.build_params[orientation]["W"]
+    # def set_orientation(self, orientation: int) -> Self:
+    #     self.orientation = orientation
+    #     return self
     
-    def get_part_info(self, orientation: int) -> dict:
+    # def get_proj_area(self, orientation: int, gap: float) -> float:
+    #     """
+    #     Returns the projection area given orientation.
+    #     """
+    #     # TODO: Check if this statement is correct
+    #     return (self.build_params[orientation]["L"]+gap) * (self.build_params[orientation]["W"]+gap)
+    
+    def get_part_info(self, orientation: int, gap: float) -> dict:
         """
         Returns a specific dict when orientation is specified for batch state.
         """
@@ -98,8 +103,8 @@ class Part(ItemFromJson):
         return {
             "volume": self.volume,
             "surface_ares": self.surface_area,
-            "L": build_param["L"],
-            "W": build_param["W"],
+            "L": build_param["L"]+gap,
+            "W": build_param["W"]+gap,
             "H": build_param["H"],
             "S": build_param["S"],
         }      

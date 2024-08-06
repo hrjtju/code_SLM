@@ -1,12 +1,24 @@
-from typing import Any, Tuple
+from typing import Any, Tuple, Union
 from torch import Tensor as Tensor
+
+from rectpack import *
 
 from slm_classes import Part
 
-
+# Version Using Rectpack Package
 def allocate_bin_packing_2d(
-    batch: Any,
-    part: Part, 
-    orientation: int, 
+    batch: Union[PackerBBF, PackerBFF, PackerBNF, PackerGlobal, PackerOnlineBBF, PackerOnlineBFF, PackerOnlineBNF],
+    part_info: dict
     ) -> Tuple[Any, bool]:
-    ...
+    
+    before_pack_ls = batch.rect_list()
+    
+    # try adding part
+    batch.add_rect(part_info["L"], part_info["W"])
+    
+    after_pack_ls = batch.rect_list()
+    
+    if len(before_pack_ls) == len(after_pack_ls):
+        return False
+    else:
+        return True
