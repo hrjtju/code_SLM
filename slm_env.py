@@ -275,7 +275,8 @@ class SLMEnv:
         part_id = parts_rank[0]
         
         view, allocated = self.solution.add_part(self.metadata.parts[part_id].get_part_info())
-            
+        
+        # If allocating failure, add a new batch and reallocate
         if allocated:
             self.last_state = self.curr_state
             
