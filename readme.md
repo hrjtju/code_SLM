@@ -3,12 +3,12 @@
 ## Todo List
 
 ### 1 Settling up environment
-- [ ] batch mechanism
-- [ ] 2d-bin packing algorithm **FF_EMS**
+- [x] batch mechanism
+- [x] 2d-bin packing algorithm **FF_EMS**
 - [ ] power function `calculate_power`
 - [ ] time function `calculate_time`
-- [ ] state transition
-- [ ] action effects
+- [x] state transition
+- [x] action effects
 - [ ] reward assignment
 
 ### 2 Training
