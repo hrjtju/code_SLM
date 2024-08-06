@@ -1,4 +1,6 @@
 from collections.abc import ValuesView
+import os
+import random
 from typing import Any, Dict, Tuple, List, Literal
 from numpy import negative
 import torch
@@ -138,24 +140,29 @@ class SLMEnv:
     
     # load instance-meta data
     def __init__(self, 
-                 random: bool = True, 
-                 in_path: str = None, 
+                 in_path: str = None, # Dir path in training and .json file path in testing stage
                  phase: Literal["Train", "Test"] = "Train", 
-                 grid_length: float =1, 
+                 view_shape: Tuple[int, int] = (224, 224), 
+                 seed: float = 0,
                  **kwargs
                  ):
+        random.seed(seed)
+        
         self.phase = phase
+        self.in_path = in_path
+        self.view_shape = view_shape
         
         # if random == True, ignore the in_path
-        if random == True:
+        if self.phase == "Train":
             # randomly pick a json file in the training dir
             # and pack the training data into a class
-            load_path = ...
-            self.metadata = load_json_to_class(load_path)
-        else:
+            load_path = random.choice(os.listdir(self.in_path))
+            self.metadata = load_json_to_class(os.path.join(self.in_path, load_path))
+        elif self.phase == "Test":
             # load the specified in_path
-            assert (in_path is not None), "in_path should not be None if random is set to False"
-            self.metadata = load_json_to_class(in_path)
+            self.metadata = load_json_to_class(self.in_path)
+        else:
+            raise NotImplementedError
         
         # -----------------------------------------------------------
         # transform the loaded data into states
@@ -171,7 +178,7 @@ class SLMEnv:
         self.W = self.metadata.machine.build_w
         self.H = self.metadata.machine.build_h
         
-        self.solution = Solution(view_shape=(224, 224))
+        self.solution = Solution(view_shape=self.view_shape)
         self.solution.add_batch(
             L = self.metadata.machine.build_l,
             W = self.metadata.machine.build_w,
@@ -182,7 +189,7 @@ class SLMEnv:
         # TODO: i.e. (number&types of parts, positions and orientations)
         # observation of the current batch
         # TODO: Redefine State
-        self.state = (
+        self.curr_state = (
             self.solution.get_current_view(),        # Current discretized view of the batch, Variable
             torch.tensor([self.L, self.W, self.H]),  # Real size of the batch, Constant
             self.metadata.init_state()               # Situation of all parts, Variable
@@ -217,13 +224,15 @@ class SLMEnv:
     
     def reset(self, seed = 0):
         if self.phase == "Train":
-            ...
+            self.__init__(in_path=self.in_path, 
+                          phase=self.phase, 
+                          view_shape=self.view_shape, 
+                          seed=seed
+                          )
         else:
-            raise NotImplementedError
+            exit(0)
         
-        self.last_state = None
-        self.curr_state = ...
-        info = None
+        info = "Reset Env"
         
         return self.curr_state, info
     
