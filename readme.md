@@ -4,7 +4,7 @@
 
 ### 1 Settling up environment
 - [x] batch mechanism
-- [x] 2d-bin packing algorithm **FF_EMS**
+- [x] 2d-bin packing algorithm **FF_EMS** (Temporarily use Rectpack package)
 - [ ] power function `calculate_power`
 - [ ] time function `calculate_time`
 - [x] state transition
