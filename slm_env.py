@@ -1,4 +1,6 @@
+from collections.abc import ValuesView
 from typing import Any, Dict, Tuple, List, Literal
+from numpy import negative
 import torch
 from torch import Tensor as Tensor
 import joyrl
@@ -68,7 +70,7 @@ class Batch:
         occupied_area = sum(map(lambda x:x["L"]*x["W"], self.parts_info))
         return total_area - occupied_area
     
-    def add_part(self, part: Part, orientation: int) -> bool:
+    def add_part(self, part: Part, orientation: int) -> Tuple[Tensor, bool]:
         """
         Add part to this batch.
         
@@ -87,28 +89,29 @@ class Batch:
         self.bin_true, success = allocate_bin_packing_2d(self.bin_true, part.get_part_info(orientation))
         
         if success:
-            # Update the current view
-            self.bin_view = self.get_current_view()
             # update list parts_info 
             self.parts_info.append(part.get_part_info(orientation))
-            return True
+            # Update the current view
+            self.bin_view = self.get_current_view()
+            
+            return self.bin_view, True
         else:
             # don't update anything
-            return False
+            return self.bin_view, False
 
 class Solution:
     """
     A Solution to a instance contains multiple batches.
     """
-    def __init__(self, grid_length) -> None:
-        self.grid_length = grid_length
+    def __init__(self, view_shape) -> None:
+        self.view_shape = view_shape
         self.batches: List[Batch] = []
     
     def add_batch(self, L, W, H) -> None:
         """
         Add an empty batch to the solution
         """
-        self.batches.append(Batch(L, W, H, self.grid_length))
+        self.batches.append(Batch(L, W, H, self.view_shape))
     
     def get_batch(self) -> Batch:
         """
@@ -117,21 +120,14 @@ class Solution:
         assert len(self.batches) > 0, "There is no batches in this solution!"
         return self.batches[-1]
     
-    def add_part(self, part: Part, orientation: int) -> None:
+    def get_current_view(self) -> Tensor:
+        return self.get_batch().get_current_view()
+    
+    def add_part(self, part: Part, orientation: int) -> Tuple[Tensor, bool]:
         """
         Try to add the part to the current batch
         """
-        success = self.get_batch().add_part(part, orientation)
-        
-        # TODO: Check the seq logic
-        if not success:
-            self.add_batch()
-            s = self.get_batch().add_part(part, orientation)
-            
-            if not s:
-                return False
-        else:
-            return True
+        return self.get_batch().add_part(part, orientation)
 
 # only supports assigning a part to a batch
 # and the 2D bin packing algorithm puts the part into a target position
@@ -155,28 +151,45 @@ class SLMEnv:
             # randomly pick a json file in the training dir
             # and pack the training data into a class
             load_path = ...
-            metadata = load_json_to_class(load_path)
+            self.metadata = load_json_to_class(load_path)
         else:
             # load the specified in_path
             assert (in_path is not None), "in_path should not be None if random is set to False"
-            metadata = load_json_to_class(in_path)
+            self.metadata = load_json_to_class(in_path)
         
         # -----------------------------------------------------------
         # transform the loaded data into states
         
         # set dict of available parts
         # length of this dict is the same size of output allocation vector.
-        self.available_parts = {part["part_type"]:part["num_part"] for part in metadata.parts}
-        self.part_unavailable_mask = torch.tensor([(1 if value > 0 else 0) \
-            for _,value in sorted(self.available_parts.values(), key=lambda x:x[0])]).reshape(1, -1)
+        self.part_unavailable_mask = None
         
         self.last_state = None
         
+        
+        self.L = self.metadata.machine.build_l
+        self.W = self.metadata.machine.build_w
+        self.H = self.metadata.machine.build_h
+        
+        self.solution = Solution(view_shape=(224, 224))
+        self.solution.add_batch(
+            L = self.metadata.machine.build_l,
+            W = self.metadata.machine.build_w,
+            H = self.metadata.machine.build_h
+            )
+        
         # TODO: Create object indicating the parts packed in every batch, 
         # TODO: i.e. (number&types of parts, positions and orientations)
-        
         # observation of the current batch
         # TODO: Redefine State
+        self.state = (
+            self.solution.get_current_view(),        # Current discretized view of the batch, Variable
+            torch.tensor([self.L, self.W, self.H]),  # Real size of the batch, Constant
+            self.metadata.init_state()               # Situation of all parts, Variable
+        )
+    
+    def get_unavailable_mask(self):
+        return (self.state[-1][:, 0] > 0).reshape(-1)
     
     # calculate power cost
     def calculate_power(self) -> float:
@@ -216,14 +229,13 @@ class SLMEnv:
     
     def step(
         self, 
-        action: Tuple[Tensor, Tensor]
+        action: Tensor
         ) -> Tuple[Tensor, float, bool, bool, str]:
         
         # TODO: Add printing orientation. 
         
         # action consists of two vectors
         # i.e. two distributions on part_types and batches accordingly
-        part_distribution, batch_distribution = action
         
         terminated = False
         truncated = False
@@ -239,25 +251,59 @@ class SLMEnv:
         # if the remaining all parts cannot be assigned to any batches, apply a 
         # large negative reward and terminate this episode.
         
-        allocation_status = False
+        allocated = False
         
-        parts_rank, batch_rank = list(map(lambda x:torch.argsort(
-                                                                 x, 
-                                                                 descending=True
-                                                                 ).reshape(-1), 
-                                          action))
-        part_id, batch_id = parts_rank[0], batch_rank[0]
+        # TODO: Remember to add a softmax layer to the policy network
+        parts_rank = torch.argsort((action.reshape(-1) * self.get_unavailable_mask()), 
+                                   descending=True)
+        # [0, 2, 0, 3, 0, 5]
+        # [5, 3, 1, 0, 2, 4]
         
-        # Empty maximal space criterion is no longer needed if bin-packing algorithm
-        # is to be used.
         
-        self.last_state = self.curr_state
+        negative_reward = 1
         
-        self.curr_state = allocate_bin_packing_2d(self.curr_state, part_id, batch_id)
+        # Select the highest id
+        part_id = parts_rank[0]
         
-        # If all parts are allocated, terminate this episode.
-        if all(v==0 for v in self.available_parts.values()):
-            terminated = True
-        
+        view, allocated = self.solution.add_part(self.metadata.parts[part_id].get_part_info())
+            
+        if allocated:
+            self.last_state = self.curr_state
+            
+            temp_part_state = self.last_state[-1]
+            temp_part_state[part_id, 0] -= 1
+            
+            self.curr_state = (
+                view,
+                self.last_state[1],
+                temp_part_state
+            )    
+            
+            # If all parts are allocated, terminate this episode.
+            if all(v==0 for v in self.available_parts.values()):
+                terminated = True
+        else:
+            # Add a new batch (same size)
+            self.solution.add_batch(self.L, self.W, self.H)
+            view, allocated = self.solution.add_part(self.metadata.parts[part_id].get_part_info())
+            
+            if allocated:
+                self.last_state = self.curr_state
+                
+                temp_part_state = self.last_state[-1]
+                temp_part_state[part_id, 0] -= 1
+                
+                self.curr_state = (
+                    view,
+                    self.last_state[1],
+                    temp_part_state
+                )    
+                
+                # If all parts are allocated, terminate this episode.
+                if all(v==0 for v in self.available_parts.values()):
+                    terminated = True
+            else:
+                truncated = True
+            
         return self.curr_state, reward, terminated, truncated, info
 
