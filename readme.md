@@ -5,10 +5,13 @@
 ### 1 Settling up environment
 - [x] batch mechanism
 - [x] 2d-bin packing algorithm **FF_EMS** (Temporarily use Rectpack package)
-- [ ] power function `calculate_power`
-- [ ] time function `calculate_time`
 - [x] state transition
 - [x] action effects
+- [ ] (Ongoing) method `get_total_surface_area` of class `Batch`
+- [ ] (Ongoing) method `get_total_part_volume` of class `Batch`
+- [ ] (Ongoing) method `get_total_support_volume` of class `Batch`
+- [ ] (Ongoing) function `calculate_batch_time`
+- [ ] (Ongoing) function `calculate_batch_energy`
 - [ ] reward assignment
 
 ### 2 Training
