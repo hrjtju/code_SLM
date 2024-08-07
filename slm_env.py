@@ -1,4 +1,6 @@
 from collections.abc import ValuesView
+from functools import reduce
+from operator import add
 import os
 import random
 from typing import Any, Dict, Tuple, List, Literal
@@ -9,7 +11,8 @@ import joyrl
 from rectpack import newPacker, PackingMode
 from math import ceil, floor
 
-from slm_classes import Part, load_json_to_class
+from time_energy_model import calculate_batch_energy, calculate_batch_time
+from slm_classes import Machine, Part, Process, load_json_to_class
 from bin_packing import allocate_bin_packing_2d
 
 class Batch:
@@ -23,14 +26,16 @@ class Batch:
               corresponding the orientation chosen
     """
     def __init__(self, 
-                 L: float, 
-                 W: float, 
-                 H: float, 
+                 machine: Machine,
+                 process: Process,
                  view_shape: tuple
                  ) -> None:
-        self.L = L
-        self.W = W
-        self.H = H
+        self.L = machine.build_l
+        self.W = machine.build_w
+        self.H = machine.build_h
+        self.machine = machine
+        self.process = process
+        
         self.view_shape = view_shape
         
         # Trial, Using RectPack Algorithm
@@ -72,6 +77,15 @@ class Batch:
         occupied_area = sum(map(lambda x:x["L"]*x["W"], self.parts_info))
         return total_area - occupied_area
     
+    def get_total_surface_area(self) -> float:
+        ...
+    
+    def get_total_part_volume(self) -> float:
+        ...
+    
+    def get_total_support_volume(self) -> float:
+        ...
+    
     def add_part(self, part: Part, orientation: int) -> Tuple[Tensor, bool]:
         """
         Add part to this batch.
@@ -100,20 +114,24 @@ class Batch:
         else:
             # don't update anything
             return self.bin_view, False
+      
+    def empty(self):
+        return len(self.parts_info) < 1
+
 
 class Solution:
     """
     A Solution to a instance contains multiple batches.
     """
-    def __init__(self, view_shape) -> None:
+    def __init__(self, view_shape: Tuple[int, int]) -> None:
         self.view_shape = view_shape
         self.batches: List[Batch] = []
     
-    def add_batch(self, L, W, H) -> None:
+    def add_batch(self, machine: Machine, process: Process) -> None:
         """
         Add an empty batch to the solution
         """
-        self.batches.append(Batch(L, W, H, self.view_shape))
+        self.batches.append(Batch(machine, process, self.view_shape))
     
     def get_batch(self) -> Batch:
         """
@@ -130,6 +148,28 @@ class Solution:
         Try to add the part to the current batch
         """
         return self.get_batch().add_part(part, orientation)
+    
+    # calculate time cost
+    def calculate_time(self) -> float:
+        """
+        Calculate the time needed for the solution UNTIL NOW
+        """
+        
+        # Equivalent to:
+        # sum_time = 0
+        # for b in self.batches:
+        #     sum_time += calculate_batch_time(b)
+        # return sum 
+        
+        return reduce(add, map(calculate_batch_time, self.batches))
+    
+    # calculate energy cost
+    def calculate_energy(self) -> float:
+        """
+        Calculate the power needed for the solution UNTIL NOW
+        """
+        return reduce(add, map(calculate_batch_energy, self.batches))
+
 
 # only supports assigning a part to a batch
 # and the 2D bin packing algorithm puts the part into a target position
@@ -179,11 +219,8 @@ class SLMEnv:
         self.H = self.metadata.machine.build_h
         
         self.solution = Solution(view_shape=self.view_shape)
-        self.solution.add_batch(
-            L = self.metadata.machine.build_l,
-            W = self.metadata.machine.build_w,
-            H = self.metadata.machine.build_h
-            )
+        self.solution.add_batch(self.metadata.machine,
+                                self.metadata.process)
         
         # TODO: Create object indicating the parts packed in every batch, 
         # TODO: i.e. (number&types of parts, positions and orientations)
@@ -197,20 +234,6 @@ class SLMEnv:
     
     def get_unavailable_mask(self):
         return (self.state[-1][:, 0] > 0).reshape(-1)
-    
-    # calculate power cost
-    def calculate_power(self) -> float:
-        """
-        Calculate the power needed for the solution UNTIL NOW
-        """
-        ...
-    
-    # calculate time cost
-    def calculate_time(self) -> float:
-        """
-        Calculate the time needed for the solution UNTIL NOW
-        """
-        ...
     
     # verify physical constraints
     def check_geo_constraints(self) -> float:
@@ -288,7 +311,7 @@ class SLMEnv:
                 terminated = True
         else:
             # Add a new batch (same size)
-            self.solution.add_batch(self.L, self.W, self.H)
+            self.solution.add_batch(self.metadata.machine, self.metadata.process)
             view, allocated = self.solution.add_part(self.metadata.parts[part_id].get_part_info())
             
             if allocated:

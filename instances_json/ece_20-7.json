@@ -147,7 +147,7 @@
         "laser_speed_contour": 730.0,
         "laser_speed_volume": 1650.0,
         "laser_speed_support": 1000.0,
-        "layer_thickness": 0.03,
+        "laser_thickness": 0.03,
         "heat_time": 2115.0,
         "cool_time": 5380.0
     },

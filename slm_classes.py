@@ -34,6 +34,19 @@ class Instance(ItemFromJson):
 
 # collects machine params
 class Machine(ItemFromJson):
+    
+    # Constants for time and energy calculation
+    A = 129.46 # Constant in the energy model for calculating time
+    B = 2.52 # Constant in the energy model for calculating time
+    C = -58.23 # Constant in the time model for calculating oxygen filling time
+    D = 88.02 # Constant in the time model for calculating oxygen filling time
+    E = 0.0838 # Constant in the time model for calculating heating time
+    F = 2.364 # Constant in the time model for calculating heating time
+    G = 82.844 # Constant in the time model for calculating heating time
+    H = 0.5048 # Constant in the time model for calculating cooling time
+    I = 192.96 # Constant in the time model for calculating cooling time
+    J = 18545 # Constant in the time model for calculating cooling time
+    
     def __init__(self) -> None:
         self.build_l, self.build_w, self.build_h = None, None, None
         self.power_subsystems = dict()
@@ -53,8 +66,8 @@ class Machine(ItemFromJson):
             orient="index"
         )
     
-    def get_power_coeff_ij(row, col) -> float:
-        ...
+    # def get_power_coeff_ij(row, col) -> float:
+    #     ...
 
 # collects process params
 class Process(ItemFromJson):
@@ -68,7 +81,7 @@ class Process(ItemFromJson):
         self.laser_speed_contour = None 
         self.laser_speed_volume = None
         self.laser_speed_support = None 
-        self.layer_thickness = None
+        self.laser_thickness = None
         self.heat_time = None
         self.cool_time = None
 

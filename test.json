@@ -58,7 +58,7 @@
         "laser_speed_contour": 1, 
         "laser_speed_volume": 1,
         "laser_speed_support": 1, 
-        "layer_thickness": 1,
+        "laser_thickness": 1,
         "heat_time": 1,
         "cool_time": 1
     },
