@@ -13,6 +13,7 @@
 - [ ] (Ongoing) function `calculate_batch_time`
 - [ ] (Ongoing) function `calculate_batch_energy`
 - [ ] reward assignment
+- [ ] Add & Modify comments and docstrings
 
 ### 2 Training
 
