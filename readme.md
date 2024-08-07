@@ -2,7 +2,7 @@
 
 ## Todo List
 
-### 1 Settling up environment
+### 1 Setting up environment
 - [x] batch mechanism
 - [x] 2d-bin packing algorithm **FF_EMS** (Temporarily use Rectpack package)
 - [x] state transition
