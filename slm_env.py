@@ -251,14 +251,6 @@ class SLMEnv:
         info = None
         reward = 0
         
-        # Try to allocate the part to the batch with the highest output score.
-        # if the batch_no allocated cannot hold the part, switch to batch_no 
-        # that has the 2-nd highest output score and apply a negative reward,
-        # and so-on so forth.
-        # If the part cannot be assigned to any of the batches, select another 
-        # part with a 2-nd highest score and repeat the aforementioned steps.
-        # if the remaining all parts cannot be assigned to any batches, apply a 
-        # large negative reward and terminate this episode.
         
         allocated = False
         
@@ -275,6 +267,8 @@ class SLMEnv:
         part_id = parts_rank[0]
         
         view, allocated = self.solution.add_part(self.metadata.parts[part_id].get_part_info())
+        
+        reward = 0
         
         # If allocating failure, add a new batch and reallocate
         if allocated:
