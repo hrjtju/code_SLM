@@ -1,4 +1,4 @@
-# SLM machine makespan & energy cost optimization using deep reinforcement learning
+# Single SLM machine makespan & energy cost optimization using deep reinforcement learning
 
 ## Todo List
 
