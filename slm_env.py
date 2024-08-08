@@ -66,7 +66,7 @@ class Batch:
     
     @property
     def slice_number(self) -> float:
-        return max(self.parts_info, key=lambda x:x["H"]) / self.process.layer_thickness
+        return ceil(max(self.parts_info, key=lambda x:x["H"]) / self.process.layer_thickness)
     
     
     def get_current_view(self, stretch: bool = True) -> Tensor:
