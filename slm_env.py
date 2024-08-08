@@ -248,11 +248,7 @@ class SLMEnv:
         self.solution.add_batch(self.metadata.machine,
                                 self.metadata.process)
         
-        # TODO: Create object indicating the parts packed in every batch, 
-        # TODO: i.e. (number&types of parts, positions and orientations)
         # observation of the current batch
-        # TODO: Redefine State
-        # TODO: Consider getting original view without stretching
         self.curr_state = (
             self.solution.get_current_view(),        # Current discretized view of the batch, Variable
             torch.tensor([self.L, self.W, self.H]),  # Real size of the batch, Constant
@@ -294,14 +290,6 @@ class SLMEnv:
         action: Tuple[Tensor, Tensor]
         ) -> Tuple[Tensor, float, bool, bool, str]:
         
-        # TODO: Change output to 10 x 7, reshape [10, 7] * mask
-        
-        # TODO: Add printing orientation. 
-        # TODO: Add filtering steps of orientations and parts
-        
-        # action consists of two vectors
-        # i.e. two distributions on part_types and batches accordingly
-        
         terminated = False
         truncated = False
         info = None
@@ -313,7 +301,6 @@ class SLMEnv:
         allocated = False
         
         # TODO: Remember to add a softmax layer to the policy network
-        # TODO: Change the function to argmax
         parts_rank = torch.argmax(feasible_matrix)
         part_id, orientation_id = divmod(parts_rank, self.metadata.max_part_type)
         
@@ -366,7 +353,6 @@ class SLMEnv:
                     
             else:
                 # TODO: Try other printing orientations, If all orientations does not fit, truncate the env.
-                
                 truncated = True
         
         # Reward assignment: Average power, Total energy cost, Total time consumption
