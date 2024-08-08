@@ -46,7 +46,11 @@ class Batch:
         self.bin_true = newPacker(mode=PackingMode.Online,
                                        rotation=False
                                        ) # depends on the packing algorithm
-        self.bin_true.add_bin(width=self.L, height=self.W)
+        
+        #! Added Margin between parts and platform edges
+        self.bin_true.add_bin(width=self.L - self.process.min_distance_part_platform, 
+                              height=self.W - self.process.min_distance_part_platform
+                              )
         
         self.bin_view: Tensor = None # should finally be a fixed size tensor
         
@@ -62,7 +66,7 @@ class Batch:
     
     @property
     def slice_number(self) -> float:
-        ...
+        return max(self.parts_info, key=lambda x:x["H"]) / self.process.layer_thickness
     
     # TODO: Add height information
     def get_current_view(self, stretch: bool = True) -> Tensor:
@@ -71,8 +75,8 @@ class Batch:
         """
         grid = torch.zeros(size=tuple(map(ceil, 
                                           (self.L, self.W))))
-        for (c, x, y, w, h, _) in self.bin_true.rect_list():
-            grid[floor(x):ceil(x+w), floor(y):ceil(y+h)] = 1
+        for (c, x, y, w, h, rid) in self.bin_true.rect_list():
+            grid[floor(x):ceil(x+w), floor(y):ceil(y+h)] = rid["height"]
             # grid[floor(x+1):ceil(x+w-1), floor(y+1):floor(y+h-1)] = -1
         
         if stretch == True:
@@ -108,16 +112,19 @@ class Batch:
         
         # Checks if the projection area of the part is smaller than the 
         # area available in this batch.
-        if part.get_proj_area(orientation) < self.get_rest_area():
+        if part.get_proj_area(orientation, self.process.min_distance_parts) < self.get_rest_area():
             return False
         
         # Try to add the part into the batch using the bin-packing algorithm
         # If it cannot be packed, return False.
-        self.bin_true, success = allocate_bin_packing_2d(self.bin_true, part.get_part_info(orientation, gap))
+        self.bin_true, success = allocate_bin_packing_2d(self.bin_true, 
+                                                         part.get_part_info(orientation, 
+                                                                            self.process.min_distance_parts))
         
         if success:
             # update list parts_info 
-            self.parts_info.append(part.get_part_info(orientation, gap))
+            self.parts_info.append(part.get_part_info(orientation, 
+                                                      self.process.min_distance_parts))
             # Update the current view
             self.bin_view = self.get_current_view()
             
@@ -151,7 +158,6 @@ class Solution:
         assert len(self.batches) > 0, "There is no batches in this solution!"
         return self.batches[-1]
     
-    # TODO: Add height information
     def get_current_view(self) -> Tensor:
         return self.get_batch().get_current_view()
     
