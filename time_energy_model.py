@@ -29,22 +29,23 @@ def calculate_batch_time(
     
     heater_time = delta_t_heater
     
+    #! Check if the term "layer_thickness" refer to "layer_thickness"
     scanning_border_time = b.get_total_surface_area() / (process.num_laser \
-        * process.laser_speed_border * process.laser_thickness)
+        * process.laser_speed_border * process.layer_thickness)
         
     fill_contour_time = b.get_total_surface_area() / (process.num_laser \
-        * process.laser_speed_contour * process.laser_thickness)
+        * process.laser_speed_contour * process.layer_thickness)
         
     volume_hatching_time = b.get_total_part_volume() / (process.num_laser \
-        * process.laser_speed_volume * process.laser_thickness * process.hatch_distance_volume)
+        * process.laser_speed_volume * process.layer_thickness * process.hatch_distance_volume)
         
     support_building_time = b.get_total_support_volume() / (process.num_laser \
-        * process.laser_speed_support * process.laser_thickness * process.hatch_distance_support)
+        * process.laser_speed_support * process.layer_thickness * process.hatch_distance_support)
     
     #! MISSING
     # TODO: Report the issue and find ways to fill them up, and ALL .json files
     # TODO: should be modified (May completed quickly using Regex Expressions).
-    recoater_time_all = process.recoater_time_single * b.slice_number
+    recoater_time_all = process.recoater_time_single * b.slice_number()
     
     cooling_time = delta_t_cooling
     

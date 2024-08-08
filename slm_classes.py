@@ -81,7 +81,7 @@ class Process(ItemFromJson):
         self.laser_speed_contour = None 
         self.laser_speed_volume = None
         self.laser_speed_support = None 
-        self.laser_thickness = None
+        self.layer_thickness = None
         self.heat_time = None
         self.cool_time = None
 
@@ -97,30 +97,24 @@ class Part(ItemFromJson):
         
         self.get_from_dict(d)
     
-    # def set_orientation(self, orientation: int) -> Self:
-    #     self.orientation = orientation
-    #     return self
-    
-    # def get_proj_area(self, orientation: int, gap: float) -> float:
-    #     """
-    #     Returns the projection area given orientation.
-    #     """
-    #     # TODO: Check if this statement is correct
-    #     return (self.build_params[orientation]["L"]+gap) * (self.build_params[orientation]["W"]+gap)
-    
     def get_part_info(self, orientation: int, gap: float) -> dict:
         """
         Returns a specific dict when orientation is specified for batch state.
         """
         build_param = self.build_params[orientation]
         return {
+            "type": self.part_type,
             "volume": self.volume,
             "surface_area": self.surface_area,
             "L": build_param["L"]+gap,
             "W": build_param["W"]+gap,
             "H": build_param["H"],
             "S": build_param["S"],
-        }      
+        }
+    
+    def get_proj_area(self, orientation: int, gap: float) -> float:
+        info_dict = self.get_part_info(orientation, gap)
+        return info_dict["L"] + info_dict["W"]
 
 # collects all data in one json file.
 class MetaData(ItemFromJson):

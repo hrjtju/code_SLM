@@ -106,7 +106,7 @@ for file_name in tqdm(os.listdir(source_dir)):
         "laser_speed_contour": process_ls[6], 
         "laser_speed_volume": process_ls[7],
         "laser_speed_support": process_ls[8], 
-        "laser_thickness": process_ls[9],
+        "layer_thickness": process_ls[9],
         "heat_time": process_ls[10],
         "cool_time": process_ls[11]
     }
