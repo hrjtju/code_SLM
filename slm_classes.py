@@ -166,7 +166,8 @@ class MetaData(ItemFromJson):
         info_list.extend([0 for _ in range(max_vec_len - len(info_list))])
         
         return torch.tensor(info_list)
-                        
+    
+    # TODO: Consider parameters of orientations of each part and the LWH of the machine params
     def mask_vec(self, part_id: int) -> Tensor:
         out_vec = torch.zeros(self.max_orientation_num)
         

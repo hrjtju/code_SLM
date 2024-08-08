@@ -12,6 +12,9 @@ def calculate_batch_time(
     b: Batch
     ) -> Dict[str, float]:
     
+    if b.empty():
+        return 0
+    
     process = b.process
     
     #! No longer needed, since it is included in the heat_time
@@ -50,6 +53,7 @@ def calculate_batch_time(
     
     # Sum the times up
     total_time = heater_time + building_time + recoater_time_all + cooling_time
+    
     return {
         "total_time": total_time,
         "heater_time": heater_time,
@@ -65,6 +69,9 @@ def calculate_batch_time(
 def calculate_batch_energy(
     b: Batch
     ) -> Dict[str, Union[float, np.ndarray, pd.DataFrame]]:
+    
+    if b.empty():
+        return 0
     
     process = b.process
     machine = b.machine

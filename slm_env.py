@@ -15,6 +15,8 @@ from time_energy_model import calculate_batch_energy, calculate_batch_time
 from slm_classes import Machine, Part, Process, load_json_to_class
 from bin_packing import allocate_bin_packing_2d
 
+#! Add Unit Test
+
 class Batch:
     """
     A Batch contains:
@@ -28,8 +30,10 @@ class Batch:
     def __init__(self, 
                  machine: Machine,
                  process: Process,
-                 view_shape: tuple
+                 view_shape: tuple,
+                 gap: float,
                  ) -> None:
+        
         self.L = machine.build_l
         self.W = machine.build_w
         self.H = machine.build_h
@@ -43,19 +47,25 @@ class Batch:
                                        rotation=False
                                        ) # depends on the packing algorithm
         self.bin_true.add_bin(width=self.L, height=self.W)
+        
         self.bin_view: Tensor = None # should finally be a fixed size tensor
         
         # {
         #     "volume": self.volume,
         #     "surface_area": self.surface_area,
-        #     "L": build_param["L"]+gap,
-        #     "W": build_param["W"]+gap,
+        #     "L": build_param["L"] + gap,
+        #     "W": build_param["W"] + gap,
         #     "H": build_param["H"],
         #     "S": build_param["S"],
         # } 
         self.parts_info: List[dict] = []
     
-    def get_current_view(self) -> Tensor:
+    @property
+    def slice_number(self) -> float:
+        ...
+    
+    # TODO: Add height information
+    def get_current_view(self, stretch: bool = True) -> Tensor:
         """
         Returns the current view of the batch as one of the neural network inputs
         """
@@ -63,12 +73,13 @@ class Batch:
                                           (self.L, self.W))))
         for (c, x, y, w, h, _) in self.bin_true.rect_list():
             grid[floor(x):ceil(x+w), floor(y):ceil(y+h)] = 1
-            grid[floor(x+1):ceil(x+w-1), floor(y+1):floor(y+h-1)] = -1
+            # grid[floor(x+1):ceil(x+w-1), floor(y+1):floor(y+h-1)] = -1
         
-        grid = torch.nn.functional.interpolate(grid, size=self.view_shape, mode="bilinear")
-        
-        return grid
-    
+        if stretch == True:
+            return torch.nn.functional.interpolate(grid, size=self.view_shape, mode="bilinear")
+        else:
+            return grid
+            
     def get_rest_area(self) -> float:
         """
         Returns rest area of a batch
@@ -102,11 +113,11 @@ class Batch:
         
         # Try to add the part into the batch using the bin-packing algorithm
         # If it cannot be packed, return False.
-        self.bin_true, success = allocate_bin_packing_2d(self.bin_true, part.get_part_info(orientation))
+        self.bin_true, success = allocate_bin_packing_2d(self.bin_true, part.get_part_info(orientation, gap))
         
         if success:
             # update list parts_info 
-            self.parts_info.append(part.get_part_info(orientation))
+            self.parts_info.append(part.get_part_info(orientation, gap))
             # Update the current view
             self.bin_view = self.get_current_view()
             
@@ -140,6 +151,7 @@ class Solution:
         assert len(self.batches) > 0, "There is no batches in this solution!"
         return self.batches[-1]
     
+    # TODO: Add height information
     def get_current_view(self) -> Tensor:
         return self.get_batch().get_current_view()
     
@@ -160,16 +172,18 @@ class Solution:
         # for b in self.batches:
         #     sum_time += calculate_batch_time(b)
         # return sum 
-        
-        return reduce(add, map(calculate_batch_time, self.batches))
+        return sum(map(calculate_batch_time, self.batches))
     
     # calculate energy cost
     def calculate_energy(self) -> float:
         """
         Calculate the power needed for the solution UNTIL NOW
         """
-        return reduce(add, map(calculate_batch_energy, self.batches))
-
+        return sum(map(calculate_batch_energy, self.batches))
+    
+    # TODO: Complete this method
+    def show(self) -> None:
+        ...
 
 # only supports assigning a part to a batch
 # and the 2D bin packing algorithm puts the part into a target position
@@ -226,12 +240,14 @@ class SLMEnv:
         # TODO: i.e. (number&types of parts, positions and orientations)
         # observation of the current batch
         # TODO: Redefine State
+        # TODO: Consider getting original view without stretching
         self.curr_state = (
             self.solution.get_current_view(),        # Current discretized view of the batch, Variable
             torch.tensor([self.L, self.W, self.H]),  # Real size of the batch, Constant
             self.metadata.init_state()               # Situation of all parts, Variable
         )
     
+    # TODO: Change this method to be align with the 2d-mask method
     def get_unavailable_mask(self):
         return (self.state[-1][:, 0] > 0).reshape(-1)
     
@@ -261,10 +277,13 @@ class SLMEnv:
     
     def step(
         self, 
-        action: Tensor
+        action: Tuple[Tensor, Tensor]
         ) -> Tuple[Tensor, float, bool, bool, str]:
         
+        # TODO: Method 2: 10 x 7, 10 x 7, reshape [10, 7] * mask
+        
         # TODO: Add printing orientation. 
+        # TODO: Add filtering steps of orientations and parts
         
         # action consists of two vectors
         # i.e. two distributions on part_types and batches accordingly
@@ -278,6 +297,7 @@ class SLMEnv:
         allocated = False
         
         # TODO: Remember to add a softmax layer to the policy network
+        # TODO: Change the function to argmax
         parts_rank = torch.argsort((action.reshape(-1) * self.get_unavailable_mask()), 
                                    descending=True)
         # [0, 2, 0, 3, 0, 5]
@@ -289,7 +309,8 @@ class SLMEnv:
         # Select the highest id
         part_id = parts_rank[0]
         
-        view, allocated = self.solution.add_part(self.metadata.parts[part_id].get_part_info())
+        
+        view, allocated = self.solution.add_part(self.metadata.parts[part_id].get_part_info(), orientation=orientation)
         
         reward = 0
         
@@ -310,6 +331,7 @@ class SLMEnv:
             if all(v==0 for v in self.available_parts.values()):
                 terminated = True
         else:
+            
             # Add a new batch (same size)
             self.solution.add_batch(self.metadata.machine, self.metadata.process)
             view, allocated = self.solution.add_part(self.metadata.parts[part_id].get_part_info())
@@ -329,8 +351,18 @@ class SLMEnv:
                 # If all parts are allocated, terminate this episode.
                 if all(v==0 for v in self.available_parts.values()):
                     terminated = True
+                    
             else:
+                # TODO: Try other printing orientations, If all orientations does not fit, truncate the env.
                 truncated = True
-            
+        
+        # TODO: Reward assignment: Average power, Total energy cost, Total time consumption
+        # TODO: Weighted Sum ? >>> Difference as reward <<<
+        
         return self.curr_state, reward, terminated, truncated, info
 
+
+if __name__ == "__main__":
+    
+    # TODO: Add testing instances
+    ...
