@@ -14,7 +14,7 @@ def allocate_bin_packing_2d(
     before_pack_ls = batch.rect_list()
     
     # try adding part
-    batch.add_rect(part_info["L"], part_info["W"])
+    batch.add_rect(part_info["L"], part_info["W"], rid={"type": part_info["type"], "height": part_info["height"]})
     
     after_pack_ls = batch.rect_list()
     
