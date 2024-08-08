@@ -7,9 +7,9 @@
 - [x] 2d-bin packing algorithm **FF_EMS** (Temporarily use Rectpack package)
 - [x] state transition
 - [x] action effects
-- [ ] (Ongoing) method `get_total_surface_area` of class `Batch`
-- [ ] (Ongoing) method `get_total_part_volume` of class `Batch`
-- [ ] (Ongoing) method `get_total_support_volume` of class `Batch`
+- [x] method `get_total_surface_area` of class `Batch`
+- [x] method `get_total_part_volume` of class `Batch`
+- [x] method `get_total_support_volume` of class `Batch`
 - [ ] (Ongoing) function `calculate_batch_time`
 - [ ] (Ongoing) function `calculate_batch_energy`
 - [ ] reward assignment

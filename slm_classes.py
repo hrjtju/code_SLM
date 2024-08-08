@@ -115,7 +115,7 @@ class Part(ItemFromJson):
         build_param = self.build_params[orientation]
         return {
             "volume": self.volume,
-            "surface_ares": self.surface_area,
+            "surface_area": self.surface_area,
             "L": build_param["L"]+gap,
             "W": build_param["W"]+gap,
             "H": build_param["H"],

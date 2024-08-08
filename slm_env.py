@@ -47,7 +47,7 @@ class Batch:
         
         # {
         #     "volume": self.volume,
-        #     "surface_ares": self.surface_area,
+        #     "surface_area": self.surface_area,
         #     "L": build_param["L"]+gap,
         #     "W": build_param["W"]+gap,
         #     "H": build_param["H"],
@@ -78,13 +78,13 @@ class Batch:
         return total_area - occupied_area
     
     def get_total_surface_area(self) -> float:
-        ...
+        return sum(map(lambda x:x["surface_area"], self.parts_info))
     
     def get_total_part_volume(self) -> float:
-        ...
+        return sum(map(lambda x:x["volume"], self.parts_info))
     
     def get_total_support_volume(self) -> float:
-        ...
+        return sum(map(lambda x:x["S"], self.parts_info))
     
     def add_part(self, part: Part, orientation: int) -> Tuple[Tensor, bool]:
         """
