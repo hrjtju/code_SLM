@@ -68,14 +68,15 @@ class Batch:
     def slice_number(self) -> float:
         return max(self.parts_info, key=lambda x:x["H"]) / self.process.layer_thickness
     
-    # TODO: Add height information
+    
     def get_current_view(self, stretch: bool = True) -> Tensor:
         """
         Returns the current view of the batch as one of the neural network inputs
+        Height information in also included.
         """
         grid = torch.zeros(size=tuple(map(ceil, 
                                           (self.L, self.W))))
-        for (c, x, y, w, h, rid) in self.bin_true.rect_list():
+        for (_, x, y, w, h, rid) in self.bin_true.rect_list():
             grid[floor(x):ceil(x+w), floor(y):ceil(y+h)] = rid["height"]
             # grid[floor(x+1):ceil(x+w-1), floor(y+1):floor(y+h-1)] = -1
         
@@ -203,6 +204,8 @@ class SLMEnv:
                  in_path: str = None, # Dir path in training and .json file path in testing stage
                  phase: Literal["Train", "Test"] = "Train", 
                  view_shape: Tuple[int, int] = (224, 224), 
+                 max_part_type: int = 20,
+                 max_orientation_num: int = 7,
                  seed: float = 0,
                  **kwargs
                  ):
@@ -223,6 +226,9 @@ class SLMEnv:
             self.metadata = load_json_to_class(self.in_path)
         else:
             raise NotImplementedError
+        
+        self.metadata.max_part_type = max_part_type
+        self.metadata.max_orientation_num = max_orientation_num
         
         # -----------------------------------------------------------
         # transform the loaded data into states
@@ -252,6 +258,8 @@ class SLMEnv:
             torch.tensor([self.L, self.W, self.H]),  # Real size of the batch, Constant
             self.metadata.init_state()               # Situation of all parts, Variable
         )
+        self.last_criterion = 0
+        
     
     # TODO: Change this method to be align with the 2d-mask method
     def get_unavailable_mask(self):
@@ -286,7 +294,7 @@ class SLMEnv:
         action: Tuple[Tensor, Tensor]
         ) -> Tuple[Tensor, float, bool, bool, str]:
         
-        # TODO: Method 2: 10 x 7, 10 x 7, reshape [10, 7] * mask
+        # TODO: Change output to 10 x 7, reshape [10, 7] * mask
         
         # TODO: Add printing orientation. 
         # TODO: Add filtering steps of orientations and parts
@@ -299,24 +307,22 @@ class SLMEnv:
         info = None
         reward = 0
         
+        out_matrix = action.reshape(self.metadata.max_part_type, self.metadata.max_orientation_num)
+        feasible_matrix = out_matrix * self.metadata.mask_matrix()
         
         allocated = False
         
         # TODO: Remember to add a softmax layer to the policy network
         # TODO: Change the function to argmax
-        parts_rank = torch.argsort((action.reshape(-1) * self.get_unavailable_mask()), 
-                                   descending=True)
+        parts_rank = torch.argmax(feasible_matrix)
+        part_id, orientation_id = divmod(parts_rank, self.metadata.max_part_type)
+        
         # [0, 2, 0, 3, 0, 5]
         # [5, 3, 1, 0, 2, 4]
         
-        
         negative_reward = 1
         
-        # Select the highest id
-        part_id = parts_rank[0]
-        
-        
-        view, allocated = self.solution.add_part(self.metadata.parts[part_id].get_part_info(), orientation=orientation)
+        view, allocated = self.solution.add_part(self.metadata.parts[part_id].get_part_info(), orientation=orientation_id)
         
         reward = 0
         
@@ -360,10 +366,14 @@ class SLMEnv:
                     
             else:
                 # TODO: Try other printing orientations, If all orientations does not fit, truncate the env.
+                
                 truncated = True
         
-        # TODO: Reward assignment: Average power, Total energy cost, Total time consumption
-        # TODO: Weighted Sum ? >>> Difference as reward <<<
+        # Reward assignment: Average power, Total energy cost, Total time consumption
+        # Weighted Sum ? >>> Difference as reward <<<
+        criterion = self.solution.calculate_energy()
+        reward = self.last_criterion - criterion
+        self.last_criterion = criterion
         
         return self.curr_state, reward, terminated, truncated, info
 
