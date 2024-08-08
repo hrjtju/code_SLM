@@ -10,8 +10,8 @@
 - [x] method `get_total_surface_area` of class `Batch`
 - [x] method `get_total_part_volume` of class `Batch`
 - [x] method `get_total_support_volume` of class `Batch`
-- [ ] (Ongoing) function `calculate_batch_time`
-- [ ] (Ongoing) function `calculate_batch_energy`
+- [x] <font color="red">ISSUES TO BE FIXED</font>function `calculate_batch_time`
+- [x] function `calculate_batch_energy`
 - [ ] reward assignment
 - [ ] Add & Modify comments and docstrings
 
