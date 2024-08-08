@@ -118,7 +118,10 @@ class Part(ItemFromJson):
 
 # collects all data in one json file.
 class MetaData(ItemFromJson):
-    def __init__(self, max_part_type: int = 20, max_orientation_num: int = 7) -> None:
+    def __init__(self, 
+                 max_part_type: int = 20, 
+                 max_orientation_num: int = 7
+                 ) -> None:
         self.max_part_type = max_part_type
         self.max_orientation_num = max_orientation_num
         
