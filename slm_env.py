@@ -74,11 +74,14 @@ class SLMEnv:
             self.metadata.init_state()               # Situation of all parts, Variable
         )
         self.last_criterion = 0
-        
     
-    # TODO: Change this method to be align with the 2d-mask method
     def get_unavailable_mask(self):
-        return (self.state[-1][:, 0] > 0).reshape(-1)
+        """
+        get unavailable mask of the part types. The indices of the output vector is 1 iff
+            - The remaining number of parts is greater than 0
+            - There is at least 1 legal orientation
+        """
+        return ((self.state[-1][:, 0] > 0) * (torch.sum(self.metadata.mask_matrix(), dim=-1) > 0)).reshape(-1)
     
     # verify physical constraints
     def check_geo_constraints(self) -> float:
@@ -104,6 +107,25 @@ class SLMEnv:
         
         return self.curr_state, info
     
+    def update_state(self, view: Tensor, part_id: int) -> None:
+        self.last_state = self.curr_state
+            
+        temp_part_state = self.last_state[-1]
+        temp_part_state[part_id, 0] -= 1
+        
+        self.curr_state = (
+            view,
+            self.last_state[1],
+            temp_part_state
+        )
+    
+    def done(self) -> None:
+        """
+        Check if all the parts are allocated
+        """
+        # If any of the kind of part have unallocated instances, return False
+        return not any(self.curr_state[-1][:, 0])
+    
     def step(
         self, 
         action: Tuple[Tensor, Tensor]
@@ -115,64 +137,66 @@ class SLMEnv:
         reward = 0
         
         out_matrix = action.reshape(self.metadata.max_part_type, self.metadata.max_orientation_num)
-        feasible_matrix = out_matrix * self.metadata.mask_matrix()
+        # Perform softmax to ensure all the instances are strictly greater than 0
+        feasible_matrix = torch.softmax(out_matrix, dim=None) * self.metadata.mask_matrix()
         
         allocated = False
         
-        # TODO: Remember to add a softmax layer to the policy network
-        parts_rank = torch.argmax(feasible_matrix)
-        part_id, orientation_id = divmod(parts_rank, self.metadata.max_part_type)
+        # Select part_id and orientation_id
+        part_id = torch.argmax(torch.sum(feasible_matrix, dim=-1))
+        orientation_rank = torch.argsort(feasible_matrix[part_id].reshape(-1))
+        rank_ptr = 0
+        orientation_id = orientation_rank[rank_ptr]
         
-        # [0, 2, 0, 3, 0, 5]
-        # [5, 3, 1, 0, 2, 4]
-        
-        negative_reward = 1
-        
+        # Try allocating the part according to the orientation selected.
         view, allocated = self.solution.add_part(self.metadata.parts[part_id].get_part_info(), orientation=orientation_id)
-        
-        reward = 0
-        
-        # If allocating failure, add a new batch and reallocate
+                
+        # If allocation fails, try other orientations
+        # If the part still cannot be allocated, then add a new bin and reallocate
+        # Terminate the env if all parts are allocated
+        # Truncate the env if part cannot be allocated by adding a new bin.
         if allocated:
-            self.last_state = self.curr_state
-            
-            temp_part_state = self.last_state[-1]
-            temp_part_state[part_id, 0] -= 1
-            
-            self.curr_state = (
-                view,
-                self.last_state[1],
-                temp_part_state
-            )    
+            self.update_state(view=view, part_id=part_id)   
             
             # If all parts are allocated, terminate this episode.
-            if all(v==0 for v in self.available_parts.values()):
+            # 
+            if self.done():
                 terminated = True
         else:
-            
-            # Add a new batch (same size)
-            self.solution.add_batch(self.metadata.machine, self.metadata.process)
-            view, allocated = self.solution.add_part(self.metadata.parts[part_id].get_part_info())
+            # Try other printing orientations, If all orientations does not fit, truncate the env.
+            while not allocated:
+                rank_ptr += 1
+                orientation_id = orientation_rank[rank_ptr]
+                
+                # If the orientation is not feasible, then break the loop
+                if feasible_matrix[part_id, orientation_id] == 0:
+                    break
+                    
+                view, allocated = self.solution.add_part(self.metadata.parts[part_id].get_part_info(), orientation=orientation_id)
             
             if allocated:
-                self.last_state = self.curr_state
-                
-                temp_part_state = self.last_state[-1]
-                temp_part_state[part_id, 0] -= 1
-                
-                self.curr_state = (
-                    view,
-                    self.last_state[1],
-                    temp_part_state
-                )    
+                self.update_state(view=view, part_id=part_id)
                 
                 # If all parts are allocated, terminate this episode.
-                if all(v==0 for v in self.available_parts.values()):
+                if self.done():
                     terminated = True
-                    
             else:
-                # TODO: Try other printing orientations, If all orientations does not fit, truncate the env.
-                truncated = True
+                # reset orientation
+                rank_ptr = 0
+                # Add a new batch (same size) and retry allocating
+                self.solution.add_batch(self.metadata.machine, self.metadata.process)
+                view, allocated = self.solution.add_part(self.metadata.parts[part_id].get_part_info(),
+                                                         orientation=orientation_rank[rank_ptr])
+                
+                if allocated:
+                    self.update_state(view=view, part_id=part_id)   
+                    
+                    # If all parts are allocated, terminate this episode.
+                    if self.done():
+                        terminated = True
+                        
+                else:
+                    truncated = True
         
         # Reward assignment: Average power, Total energy cost, Total time consumption
         # Weighted Sum ? >>> Difference as reward <<<
