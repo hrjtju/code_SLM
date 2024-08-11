@@ -1,11 +1,11 @@
-from functools import reduce
-from operator import add
-from typing import Any, Dict, Tuple, List
-from numpy import negative
+import os
+from typing import Tuple, List
 import torch
 from torch import Tensor as Tensor
 from rectpack import newPacker, PackingMode
 from math import ceil, floor
+from _typeshed import SupportsWrite
+import matplotlib.pyplot as plt
 
 from time_energy_model import calculate_batch_energy, calculate_batch_time
 from slm_classes import Machine, Part, Process
@@ -62,8 +62,7 @@ class Batch:
     def slice_number(self) -> float:
         return ceil(max(self.parts_info, key=lambda x:x["H"]) / self.process.layer_thickness)
     
-    
-    def get_current_view(self, stretch: bool = True) -> Tensor:
+    def get_current_view(self, stretch: bool = True, show: bool = False) -> Tensor:
         """
         Returns the current view of the batch as one of the neural network inputs
         Height information in also included.
@@ -72,7 +71,8 @@ class Batch:
                                           (self.L, self.W))))
         for (_, x, y, w, h, rid) in self.bin_true.rect_list():
             grid[floor(x):ceil(x+w), floor(y):ceil(y+h)] = rid["height"]
-            # grid[floor(x+1):ceil(x+w-1), floor(y+1):floor(y+h-1)] = -1
+            if show:
+                grid[floor(x+1):ceil(x+w-1), floor(y+1):floor(y+h-1)] = -1
         
         if stretch == True:
             return torch.nn.functional.interpolate(grid, size=self.view_shape, mode="bilinear")
@@ -128,9 +128,20 @@ class Batch:
             # don't update anything
             return self.bin_view, False
       
-    def empty(self):
+    def empty(self) -> bool:
         return len(self.parts_info) < 1
 
+    def show_parts(self, fp: SupportsWrite[str]) -> None:
+        for idx, part in self.parts_info:
+            print(f"{idx = }, {part}", file=fp)
+    
+    def show_view(self, dir: str) -> None:
+        view = self.get_current_view(stretch=False, show=True)
+        plt.imshow(view)
+        plt.colorbar()
+        plt.grid()
+        plt.savefig(dir)
+        
 
 class Solution:
     """
@@ -162,7 +173,6 @@ class Solution:
         """
         return self.get_batch().add_part(part, orientation)
     
-    # calculate time cost
     def calculate_time(self) -> float:
         """
         Calculate the time needed for the solution UNTIL NOW
@@ -175,13 +185,15 @@ class Solution:
         # return sum 
         return sum(map(calculate_batch_time, self.batches))
     
-    # calculate energy cost
     def calculate_energy(self) -> float:
         """
         Calculate the power needed for the solution UNTIL NOW
         """
         return sum(map(calculate_batch_energy, self.batches))
     
-    # TODO: Complete this method
-    def show(self) -> None:
-        ...
+    def show(self, out_dir: str = f"./solution/") -> None:
+        with open(os.path.join(out_dir, "contains.txt"), 'w') as f:
+            for bid, b in enumerate(self.batches):
+                print(f"{'=' * 30}\n\t\tBatch No. {bid}{'=' * 30}", file=f)
+                b.show_parts(f)
+                b.show_view(f"{out_dir}/batch_{bid:02d}.img")
