@@ -13,15 +13,24 @@
 - [x] **ISSUES TO BE FIXED** function `calculate_batch_time`
 - [x] function `calculate_batch_energy`
 - [ ] reward assignment
-- [ ] Add & Modify comments and docstrings
+- [ ] Add & Modify comments and docstring
 
-### 2 Training
+### 2 Testing the Environment
+
+- [ ] SLM Classes
+- [ ] SLM Environment
+- [ ] Bin Packing
+- [ ] Batch Solution
+- [ ] Time & Energy Calculation
+- [ ] Joint Testings
+
+### 3 Training
 
 - [ ] Adjusting config files or source code of joyrl to run the model
 - [ ] Test running and result analysis
 - [ ] Experiments on various training data & DRL models
 
-### 3 Fixing generalization issues
+### 4 Fixing generalization issues
 
 
 ## Problem Statement
