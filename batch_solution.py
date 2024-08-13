@@ -4,7 +4,6 @@ import torch
 from torch import Tensor as Tensor
 from rectpack import newPacker, PackingMode
 from math import ceil, floor
-from _typeshed import SupportsWrite
 import matplotlib.pyplot as plt
 
 from time_energy_model import calculate_batch_energy, calculate_batch_time
@@ -161,7 +160,7 @@ class Batch:
         """
         return len(self.parts_info) < 1
 
-    def show_parts(self, fp: SupportsWrite[str]) -> None:
+    def show_parts(self, fp) -> None:
         """
         Print self.parts_into into a file.
         """
