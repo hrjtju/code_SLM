@@ -24,8 +24,7 @@ class Batch:
     def __init__(self, 
                  machine: Machine,
                  process: Process,
-                 view_shape: tuple,
-                 gap: float,
+                 view_shape: tuple
                  ) -> None:
         
         # Fetch LWH params from instance of class Machine
