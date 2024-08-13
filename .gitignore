@@ -46,3 +46,5 @@ experiment-related-model/*
 *.html
 readme.pdf
 
+# Cpython files 
+__pycache__/*
