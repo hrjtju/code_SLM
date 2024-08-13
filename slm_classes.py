@@ -1,4 +1,4 @@
-from typing import List, Self
+from typing import Any, Dict, List, Self
 import numpy as np
 import pandas as pd
 import json
@@ -10,15 +10,24 @@ import torch
 from torch import Tensor
 
 class ItemFromJson:
+    """
+    Base class.
+    Supports `get_from_dict()` and `show()`.
+    """
     def __init__(self) -> None:
         ...
     
-    def get_from_dict(self, d:dict) -> None:
+    def get_from_dict(self, d: Dict[str, Any]) -> None:
+        """
+        Gets class params from input dict. 
+        """
         for k,v in d.items():
             setattr(self, k, v)
     
     def show(self) -> None:
-        # pprint(self.__dict__.items())
+        """
+        Displays ALL the params of a class instance into the command line.
+        """
         
         pprint(list(map(lambda x: (x[0], x[1].__dict__) if isinstance(x[1], ItemFromJson)\
                             else ((x[0], [k.__dict__ for k in x[1]]) if isinstance(x[1], List)\
@@ -27,6 +36,12 @@ class ItemFromJson:
 
 # instance class. for getting instance info from json file.
 class Instance(ItemFromJson):
+    """
+    Container of Instance params
+    - num_parts
+    - num_orientations
+    - type_parts
+    """
     def __init__(self) -> None:
         self.num_parts = None
         self.num_orientations = None
@@ -34,6 +49,9 @@ class Instance(ItemFromJson):
 
 # collects machine params
 class Machine(ItemFromJson):
+    """
+    Container of Machine params
+    """
     
     # Constants for time and energy calculation
     A = 129.46 # Constant in the energy model for calculating time
@@ -71,6 +89,21 @@ class Machine(ItemFromJson):
 
 # collects process params
 class Process(ItemFromJson):
+    """
+    Container of process params
+    - min_distance_parts
+    - min_distance_part_platform
+    - num_laser
+    - hatch_distance_volume
+    - hatch_distance_support 
+    - laser_speed_border
+    - laser_speed_contour 
+    - laser_speed_volume
+    - laser_speed_support 
+    - layer_thickness
+    - heat_time
+    - cool_time
+    """
     def __init__(self):
         self.min_distance_parts = None 
         self.min_distance_part_platform = None
@@ -87,17 +120,21 @@ class Process(ItemFromJson):
 
 # collects params for each part
 class Part(ItemFromJson):
-    def __init__(self, d: dict) -> None:
+    """
+    Container of part param of a specific type, including all params of different orientations
+    """
+    def __init__(self, d: dict, gap: float) -> None:
         self.part_type = None
         self.num_part = None
         self.volume = None
         self.surface_area = None
         self.build_params: List[dict] = None
+        self.gap = gap
         # self.orientation = None
         
         self.get_from_dict(d)
     
-    def get_part_info(self, orientation: int, gap: float) -> dict:
+    def get_part_info(self, orientation: int) -> dict:
         """
         Returns a specific dict when orientation is specified for batch state.
         """
@@ -106,18 +143,24 @@ class Part(ItemFromJson):
             "type": self.part_type,
             "volume": self.volume,
             "surface_area": self.surface_area,
-            "L": build_param["L"]+gap,
-            "W": build_param["W"]+gap,
+            "L": build_param["L"]+self.gap,
+            "W": build_param["W"]+self.gap,
             "H": build_param["H"],
             "S": build_param["S"],
         }
     
-    def get_proj_area(self, orientation: int, gap: float) -> float:
-        info_dict = self.get_part_info(orientation, gap)
+    def get_proj_area(self, orientation: int) -> float:
+        """
+        Get the area of a part's projection to bottom of the batch (Including gaps).
+        """
+        info_dict = self.get_part_info(orientation)
         return info_dict["L"] + info_dict["W"]
 
 # collects all data in one json file.
 class MetaData(ItemFromJson):
+    """
+    Collection of all data of an instance.
+    """
     def __init__(self, 
                  max_part_type: int = 20, 
                  max_orientation_num: int = 7
@@ -138,6 +181,9 @@ class MetaData(ItemFromJson):
              process: Process, 
              parts: List[Part],
              ) -> None:
+        """
+        Load all information of an instance into each blocks.
+        """
         self.instance = instance
         self.machine = machine
         self.process = process
@@ -146,10 +192,17 @@ class MetaData(ItemFromJson):
         self.mask_mtx = self.mask_matrix()
         
     def get_from_dict(self, d: dict) -> None:
+        """
+        This method has been turned OFF.
+        """
         raise NotImplementedError
     
     # get a vector indicating the part information
     def part_vec(self, part_id: int) -> Tensor:
+        """
+        Returns the vector representing this part.
+        """
+        
         max_vec_len = 3 + 4*self.max_orientation_num
         
         if part_id >= len(self.parts):
@@ -164,8 +217,11 @@ class MetaData(ItemFromJson):
         
         return torch.tensor(info_list)
     
-    # TODO: Consider parameters of orientations of each part and the LWH of the machine params
     def mask_vec(self, part_id: int) -> Tensor:
+        """
+        Returns the mask vector of a single part
+        """
+        
         out_vec = torch.zeros(self.max_orientation_num)
         
         if part_id >= len(self.parts):
@@ -173,13 +229,29 @@ class MetaData(ItemFromJson):
         
         orient_num = len(self.parts[part_id].build_params)
         out_vec[:orient_num] = 1
+        
+        # Filter out all orientations that cannot fit-in a empty batch
+        for i in range(orient_num):
+            info_dict = self.parts[part_id].get_part_info(i)
+            if info_dict["L"] > self.machine.build_l \
+                or info_dict["W"] > self.machine.build_w \
+                or info_dict["H"] > self.machine.build_h:
+            
+                out_vec[i] = 0
+                        
         return out_vec
     
     # get mask_dict of this instance
     def init_state(self) -> Tensor:
+        """
+        Get the initial state matrix
+        """
         return torch.stack([self.part_vec(i) for i in range(self.max_part_type)], dim=0)
     
     def mask_matrix(self) -> Tensor:
+        """
+        Get the mask matrix of this instance
+        """
         return torch.stack([self.mask_vec(i) for i in range(self.max_part_type)], dim=0)
 
 def load_json_to_class(path: str) -> MetaData:
