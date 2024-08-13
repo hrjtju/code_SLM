@@ -92,7 +92,10 @@ class Batch:
         
         # Stretch the view into standard size to fit in to NN.
         if stretch == True:
-            return torch.nn.functional.interpolate(grid, size=self.view_shape, mode="bilinear")
+            return torch.nn.functional.interpolate(grid.reshape(1, 1, *grid.shape), 
+                                                   size=self.view_shape, 
+                                                   mode="bilinear"
+                                                   )
         
         # retain the original shape of the view for human-eye reference.
         else:
@@ -135,19 +138,17 @@ class Batch:
         
         # Checks if the projection area of the part is smaller than the 
         # area available in this batch.
-        if part.get_proj_area(orientation, self.process.min_distance_parts) < self.get_rest_area():
-            return False
+        if part.get_proj_area(orientation) > self.get_rest_area():
+            return None, False
         
         # Try to add the part into the batch using the bin-packing algorithm
         # If it cannot be packed, return False.
         self.bin_true, success = allocate_bin_packing_2d(self.bin_true, 
-                                                         part.get_part_info(orientation, 
-                                                                            self.process.min_distance_parts))
+                                                         part.get_part_info(orientation))
         
         if success:
             # update list parts_info 
-            self.parts_info.append(part.get_part_info(orientation, 
-                                                      self.process.min_distance_parts))
+            self.parts_info.append(part.get_part_info(orientation))
             # Update the current view
             self.bin_view = self.get_current_view()
             

@@ -21,13 +21,13 @@ metadata = load_json_to_class(r"./instances_json/ec_30-1.json")
 # -------------------slm_classes.py-------------------
 print("\n-------------------slm_classes.py-------------------\n")
 # Testing ALL params
-metadata.show()
+# metadata.show()
 
 # Init state
-print(metadata.init_state())
+# print(metadata.init_state())
 
 # Mask Matrix
-print(metadata.mask_matrix())
+# print(metadata.mask_matrix())
 
 
 # -------------------batch_solution.py-------------------
@@ -45,8 +45,9 @@ print(f"{solution_test.get_batch().slice_number}")
 # The get_part_info() method already takes in orientation parameter, 
 # add_part() can be simplified to taking only one param
 # by letting get_part_info() to output a dict that contains key "O".
-solution_test.add_part(metadata.parts[0], 0)
+_, success = solution_test.add_part(metadata.parts[0], 0)
 
+print(f"{success = }")
 print(f"{solution_test.get_batch().empty() = }")
 print(f"{solution_test.get_batch().get_total_part_volume() = }")
 print(f"{solution_test.get_batch().get_total_surface_area() = }")
@@ -60,7 +61,8 @@ plt.imshow(view)
 
 print(f"\n Add type 0 orientation 1 \n")
 print(f"{solution_test.get_batch().empty() = }")
-print(f"{metadata.parts[0].get_part_info() = }")
+print(f"{metadata.parts[0].build_params = }")
+print(f"{metadata.parts[0].get_part_info(1) = }")
 print(f"{solution_test.get_batch().slice_number}")
 
 solution_test.add_part(metadata.parts[0].get_part_info(), 1)
