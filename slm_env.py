@@ -28,24 +28,43 @@ class SLMEnv:
                  seed: float = 0,
                  **kwargs
                  ):
+        """Initialise a SLM Env.
+
+        Args:
+            `in_path` (`str`): path for instances, dir path for training phase while path of .json file for
+                testing phase. 
+                Defaults to `None`.
+            `view_shape` (`Tuple[int, int]`): shape of the reshaped view for NN processing. Defaults to `(224, 224)`.
+            `max_part_type` (`int`): maximum of number of types accepted. Defaults to `20`.
+            `max_orientation_num` (`int`): maximum of number of orientation numbers accepted. Defaults to `7`.
+            `seed` (`float`): random seed to be passed to function random.seed(). Defaults to `0`.
+
+        Raises:
+            NotImplementedError: If self.phase is not among ["Train", "Test"].
+        """
+        
         random.seed(seed)
         
         self.phase = phase
         self.in_path = in_path
         self.view_shape = view_shape
         
-        # if random == True, ignore the in_path
+        # randomly pick a json file in the training dir
+        # and pack the training data into a class
         if self.phase == "Train":
-            # randomly pick a json file in the training dir
-            # and pack the training data into a class
             load_path = random.choice(os.listdir(self.in_path))
             self.metadata = load_json_to_class(os.path.join(self.in_path, load_path))
+            
+        # if the phase is Test, choose the file indicated by the path.
         elif self.phase == "Test":
             # load the specified in_path
             self.metadata = load_json_to_class(self.in_path)
+            
+        # Raise Error if self.phase is not among the two strings above.
         else:
             raise NotImplementedError
         
+        # pass the max params to self.metadata for generating state matrix and mask matrix
         self.metadata.max_part_type = max_part_type
         self.metadata.max_orientation_num = max_orientation_num
         
@@ -55,14 +74,14 @@ class SLMEnv:
         # set dict of available parts
         # length of this dict is the same size of output allocation vector.
         self.part_unavailable_mask = None
-        
         self.last_state = None
         
-        
+        # Get the shape of the working area
         self.L = self.metadata.machine.build_l
         self.W = self.metadata.machine.build_w
         self.H = self.metadata.machine.build_h
         
+        # Create an instance of class Solution and initialize it by calling .add_batch() method.
         self.solution = Solution(view_shape=self.view_shape)
         self.solution.add_batch(self.metadata.machine,
                                 self.metadata.process)
@@ -73,6 +92,8 @@ class SLMEnv:
             torch.tensor([self.L, self.W, self.H]),  # Real size of the batch, Constant
             self.metadata.init_state()               # Situation of all parts, Variable
         )
+        
+        # Initial reference for comparing criterion numbers.
         self.last_criterion = 0
     
     def get_unavailable_mask(self):
@@ -86,6 +107,8 @@ class SLMEnv:
     # verify physical constraints
     def check_geo_constraints(self) -> float:
         """
+        NOT IMPLEMENTED YET
+        
         Used only if DRL model is allowed to determine 
         the position and orientation of a part in a batch.
         
@@ -94,25 +117,38 @@ class SLMEnv:
         ...
     
     def reset(self, seed = 0):
+        """
+        Reset the env according to self.phase
+        """
         if self.phase == "Train":
             self.__init__(in_path=self.in_path, 
                           phase=self.phase, 
                           view_shape=self.view_shape, 
                           seed=seed
                           )
-        else:
+        elif self.phase == "Text":
             exit(0)
+        else:
+            raise NotImplementedError
         
         info = "Reset Env"
         
         return self.curr_state, info
     
     def update_state(self, view: Tensor, part_id: int) -> None:
+        """
+        Update self.current state according to part_id and view after a successful packing
+        """
         self.last_state = self.curr_state
-            
+        
+        # get the state matrix of parts at this timestamp
         temp_part_state = self.last_state[-1]
+        assert temp_part_state[part_id, 0] > 0, "Error, trying to allocate type of part which is already 0 parts."
+        
+        # Decrement the number of type part_id by 1 (with assertion that it must greater than 0)
         temp_part_state[part_id, 0] -= 1
         
+        # Create new self.curr_state.
         self.curr_state = (
             view,
             self.last_state[1],
@@ -128,23 +164,37 @@ class SLMEnv:
     
     def step(
         self, 
-        action: Tuple[Tensor, Tensor]
+        action: Tensor
         ) -> Tuple[Tensor, float, bool, bool, str]:
+        """
+        Update the Env according to the action.
+        
+        Action: long tensor shaped 
+            [ max_part_type * max_orientation_num ].
+        """
         
         terminated = False
         truncated = False
         info = None
         reward = 0
         
+        # Reshape action vector:
+        #   [ max_part_type * max_orientation_num ] --> [ max_part_type, max_orientation_num ]
         out_matrix = action.reshape(self.metadata.max_part_type, self.metadata.max_orientation_num)
+        
         # Perform softmax to ensure all the instances are strictly greater than 0
         feasible_matrix = torch.softmax(out_matrix, dim=None) * self.metadata.mask_matrix()
         
+        # Flag var, Whether the part is allocated successfully
         allocated = False
         
         # Select part_id and orientation_id
         part_id = torch.argmax(torch.sum(feasible_matrix, dim=-1))
+        
+        # Get the rank of different orientations of the part selected according to the output score
         orientation_rank = torch.argsort(feasible_matrix[part_id].reshape(-1))
+        
+        # Initialize pointer, and get the orientation id according to the pointer
         rank_ptr = 0
         orientation_id = orientation_rank[rank_ptr]
         
@@ -206,8 +256,3 @@ class SLMEnv:
         
         return self.curr_state, reward, terminated, truncated, info
 
-
-if __name__ == "__main__":
-    
-    # TODO: Add testing instances
-    ...
