@@ -11,12 +11,12 @@ from slm_env import SLMEnv
 
 torch.set_printoptions(precision=1, sci_mode=False)
 
-file = random.choice(os.listdir("./instances_json"))
+file = random.choice(list(filter(lambda x: "-1." not in x, os.listdir("./instances_json"))))
 file_dir = os.path.join("./instances_json", file)
 
 print(f"Testing file name: \t{file_dir}")
 
-metadata = load_json_to_class(r"./instances_json/ec_30-1.json")
+metadata = load_json_to_class(file_dir)
 
 # -------------------slm_classes.py-------------------
 print("\n-------------------slm_classes.py-------------------\n")
@@ -65,7 +65,7 @@ print(f"{metadata.parts[0].build_params = }")
 print(f"{metadata.parts[0].get_part_info(1) = }")
 print(f"{solution_test.get_batch().slice_number}")
 
-solution_test.add_part(metadata.parts[0].get_part_info(), 1)
+solution_test.add_part(metadata.parts[0], 1)
 
 print(f"{solution_test.get_batch().empty() = }")
 print(f"{solution_test.get_batch().get_total_part_volume() = }")

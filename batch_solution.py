@@ -71,7 +71,7 @@ class Batch:
 
         slice_number = ceil( maximum_of_build_height / layer_thickness )  
         """
-        return ceil(max(self.parts_info, key=lambda x:x["H"]) / self.process.layer_thickness) \
+        return ceil(max(self.parts_info, key=lambda x:x["H"])["H"] / self.process.layer_thickness) \
             if not self.empty() else 0
     
     def get_current_view(self, stretch: bool = True, show: bool = False) -> Tensor:

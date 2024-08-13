@@ -283,7 +283,7 @@ if __name__ == "__main__":
     
     torch.set_printoptions(precision=1, sci_mode=False)
     
-    metadata = load_json_to_class(r"./instances_json/ec_30-1.json")
+    metadata = load_json_to_class(r"./instances_json/ece_20-7.json")
     
     print(metadata.init_state())
     print(metadata.mask_mtx)
