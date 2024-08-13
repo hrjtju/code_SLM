@@ -18,6 +18,7 @@ def allocate_bin_packing_2d(
     
     after_pack_ls = batch.rect_list()
     
+    # Returns True if the the rect is added to the bin, otherwise return False.
     if len(before_pack_ls) == len(after_pack_ls):
         return False
     else:
