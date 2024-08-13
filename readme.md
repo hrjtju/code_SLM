@@ -12,7 +12,7 @@
 - [x] method `get_total_support_volume` of class `Batch`
 - [x] **ISSUES TO BE FIXED** function `calculate_batch_time`
 - [x] function `calculate_batch_energy`
-- [ ] reward assignment
+- [x] reward assignment
 - [ ] Add & Modify comments and docstring
 
 ### 2 Testing the Environment
