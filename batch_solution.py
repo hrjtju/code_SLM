@@ -29,8 +29,9 @@ class Batch:
                  ) -> None:
         
         # Fetch LWH params from instance of class Machine
-        self.L = machine.build_l
-        self.W = machine.build_w
+        #! Real space for bin packing: (L - 2*Margin) * (W - 2*Margin)
+        self.L = machine.build_l - 2 * self.process.min_distance_part_platform
+        self.W = machine.build_w - 2 * self.process.min_distance_part_platform
         self.H = machine.build_h
         
         # define self.machine and self.process for easier access of params
@@ -47,9 +48,8 @@ class Batch:
                                        ) # depends on the packing algorithm
         
         # Added Margin between parts and platform edges
-        #! Real space for bin packing: (L - 2*Margin) * (W - 2*Margin)
-        self.bin_true.add_bin(width=self.L - 2 * self.process.min_distance_part_platform, 
-                              height=self.W - 2 * self.process.min_distance_part_platform
+        self.bin_true.add_bin(width=self.L, 
+                              height=self.W
                               )
         
         self.bin_view: Tensor = None # should finally be a fixed size tensor
@@ -62,10 +62,16 @@ class Batch:
         #     "H": build_param["H"],
         #     "S": build_param["S"],
         # } 
+        # self.parts_into contains list of dicts containing parts info with orientations already specified.
         self.parts_info: List[dict] = []
     
     @property
     def slice_number(self) -> float:
+        """
+        Get the slice number of build
+
+        slice_number = ceil( maximum_of_build_height / layer_thickness )  
+        """
         return ceil(max(self.parts_info, key=lambda x:x["H"]) / self.process.layer_thickness)
     
     def get_current_view(self, stretch: bool = True, show: bool = False) -> Tensor:
@@ -76,12 +82,19 @@ class Batch:
         grid = torch.zeros(size=tuple(map(ceil, 
                                           (self.L, self.W))))
         for (_, x, y, w, h, rid) in self.bin_true.rect_list():
+            
+            # Add hights corresponding to the area occupied by each part, for reference of NN.
             grid[floor(x):ceil(x+w), floor(y):ceil(y+h)] = rid["height"]
+            
             if show:
+                # Add lacing to each rectangle for visual reference.
                 grid[floor(x+1):ceil(x+w-1), floor(y+1):floor(y+h-1)] = -1
         
+        # Stretch the view into standard size to fit in to NN.
         if stretch == True:
             return torch.nn.functional.interpolate(grid, size=self.view_shape, mode="bilinear")
+        
+        # retain the original shape of the view for human-eye reference.
         else:
             return grid
             
@@ -94,12 +107,21 @@ class Batch:
         return total_area - occupied_area
     
     def get_total_surface_area(self) -> float:
+        """
+        Returns total <u>surface area</u> of all parts in this batch
+        """
         return sum(map(lambda x:x["surface_area"], self.parts_info))
     
     def get_total_part_volume(self) -> float:
+        """
+        Returns total <u>volume</u> of all parts in this batch
+        """
         return sum(map(lambda x:x["volume"], self.parts_info))
     
     def get_total_support_volume(self) -> float:
+        """
+        Returns total <u>volume of support</u> of all parts in this batch
+        """
         return sum(map(lambda x:x["S"], self.parts_info))
     
     def add_part(self, part: Part, orientation: int) -> Tuple[Tensor, bool]:
@@ -135,13 +157,22 @@ class Batch:
             return self.bin_view, False
       
     def empty(self) -> bool:
+        """
+        Checks whether the batch is empty
+        """
         return len(self.parts_info) < 1
 
     def show_parts(self, fp: SupportsWrite[str]) -> None:
+        """
+        Print self.parts_into into a file.
+        """
         for idx, part in self.parts_info:
             print(f"{idx = }, {part}", file=fp)
     
     def show_view(self, dir: str) -> None:
+        """
+        Print view of the batch in in terms of a matrix as an image
+        """
         view = self.get_current_view(stretch=False, show=True)
         plt.imshow(view)
         plt.colorbar()
@@ -171,6 +202,9 @@ class Solution:
         return self.batches[-1]
     
     def get_current_view(self) -> Tensor:
+        """
+        Get the view of the current batch
+        """
         return self.get_batch().get_current_view()
     
     def add_part(self, part: Part, orientation: int) -> Tuple[Tensor, bool]:
@@ -198,6 +232,9 @@ class Solution:
         return sum(map(calculate_batch_energy, self.batches))
     
     def show(self, out_dir: str = f"./solution/") -> None:
+        """
+        Display all the part_ls and view of all batches of the solution.
+        """
         with open(os.path.join(out_dir, "contains.txt"), 'w') as f:
             for bid, b in enumerate(self.batches):
                 print(f"{'=' * 30}\n\t\tBatch No. {bid}{'=' * 30}", file=f)
