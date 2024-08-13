@@ -71,7 +71,8 @@ class Batch:
 
         slice_number = ceil( maximum_of_build_height / layer_thickness )  
         """
-        return ceil(max(self.parts_info, key=lambda x:x["H"]) / self.process.layer_thickness)
+        return ceil(max(self.parts_info, key=lambda x:x["H"]) / self.process.layer_thickness) \
+            if not self.empty() else 0
     
     def get_current_view(self, stretch: bool = True, show: bool = False) -> Tensor:
         """
@@ -222,13 +223,13 @@ class Solution:
         # for b in self.batches:
         #     sum_time += calculate_batch_time(b)
         # return sum 
-        return sum(map(calculate_batch_time, self.batches))
+        return 0 if self.empty() else sum(map(calculate_batch_time, self.batches))
     
     def calculate_energy(self) -> float:
         """
         Calculate the power needed for the solution UNTIL NOW
         """
-        return sum(map(calculate_batch_energy, self.batches))
+        return 0 if self.empty() else sum(map(calculate_batch_energy, self.batches))
     
     def show(self, out_dir: str = f"./solution/") -> None:
         """
@@ -240,6 +241,9 @@ class Solution:
                 b.show_parts(f)
                 b.show_view(f"{out_dir}/batch_{bid:02d}.img")
 
+    def empty(self) -> bool:
+        return (len(self.batches) < 1) or all(map(lambda x:x.empty(), self.batches))
+    
 
 CONCENTRATION_OXYGEN_INITIAL = 21
 CONCENTRATION_OXYGEN_END = 0.1
