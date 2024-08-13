@@ -265,7 +265,9 @@ def load_json_to_class(path: str) -> MetaData:
     instance_json.get_from_dict(json_dict["instance_type"])
     machine_json.get_from_dict(json_dict["machine_params"])
     process_json.get_from_dict(json_dict["process_params"])
-    parts = [Part(d) for d in json_dict["part_info"]]
+    parts = [Part(d=d, 
+                  gap=process_json.min_distance_parts) 
+                for d in json_dict["part_info"]]
     
     metadata = MetaData()
     metadata.load(instance=instance_json, 
