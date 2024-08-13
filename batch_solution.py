@@ -28,12 +28,17 @@ class Batch:
                  gap: float,
                  ) -> None:
         
+        # Fetch LWH params from instance of class Machine
         self.L = machine.build_l
         self.W = machine.build_w
         self.H = machine.build_h
+        
+        # define self.machine and self.process for easier access of params
         self.machine = machine
         self.process = process
         
+        # view_shape is for reshaping view of the batch 
+        # for neural network processing
         self.view_shape = view_shape
         
         # Trial, Using RectPack Algorithm
@@ -41,9 +46,10 @@ class Batch:
                                        rotation=False
                                        ) # depends on the packing algorithm
         
-        #! Added Margin between parts and platform edges
-        self.bin_true.add_bin(width=self.L - self.process.min_distance_part_platform, 
-                              height=self.W - self.process.min_distance_part_platform
+        # Added Margin between parts and platform edges
+        #! Real space for bin packing: (L - 2*Margin) * (W - 2*Margin)
+        self.bin_true.add_bin(width=self.L - 2 * self.process.min_distance_part_platform, 
+                              height=self.W - 2 * self.process.min_distance_part_platform
                               )
         
         self.bin_view: Tensor = None # should finally be a fixed size tensor
