@@ -177,7 +177,7 @@ class Batch:
         plt.colorbar()
         plt.grid()
         plt.savefig(dir)
-        
+         
 
 class Solution:
     """
@@ -200,11 +200,11 @@ class Solution:
         assert len(self.batches) > 0, "There is no batches in this solution!"
         return self.batches[-1]
     
-    def get_current_view(self) -> Tensor:
+    def get_current_view(self, stretch: bool = True, show: bool = False) -> Tensor:
         """
         Get the view of the current batch
         """
-        return self.get_batch().get_current_view()
+        return self.get_batch().get_current_view(stretch=stretch, show=show)
     
     def add_part(self, part: Part, orientation: int) -> Tuple[Tensor, bool]:
         """
