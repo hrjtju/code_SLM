@@ -33,15 +33,19 @@ print(metadata.mask_matrix())
 # -------------------batch_solution.py-------------------
 print("\n-------------------batch_solution.py-------------------\n")
 solution_test = Solution(view_shape=(224, 224))
+solution_test.add_batch(metadata.machine, metadata.process)
 
 # Add type 0
 
 print(f"\n Add type 0 orientation 0 \n")
 print(f"{solution_test.get_batch().empty() = }")
-print(f"{metadata.parts[0].get_part_info() = }")
+print(f"{metadata.parts[0].get_part_info(0) = }")
 print(f"{solution_test.get_batch().slice_number}")
 
-solution_test.add_part(metadata.parts[0].get_part_info(), 0)
+# The get_part_info() method already takes in orientation parameter, 
+# add_part() can be simplified to taking only one param
+# by letting get_part_info() to output a dict that contains key "O".
+solution_test.add_part(metadata.parts[0], 0)
 
 print(f"{solution_test.get_batch().empty() = }")
 print(f"{solution_test.get_batch().get_total_part_volume() = }")

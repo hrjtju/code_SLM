@@ -199,7 +199,7 @@ class SLMEnv:
         orientation_id = orientation_rank[rank_ptr]
         
         # Try allocating the part according to the orientation selected.
-        view, allocated = self.solution.add_part(self.metadata.parts[part_id].get_part_info(), orientation=orientation_id)
+        view, allocated = self.solution.add_part(self.metadata.parts[part_id], orientation=orientation_id)
                 
         # If allocation fails, try other orientations
         # If the part still cannot be allocated, then add a new bin and reallocate
@@ -222,7 +222,7 @@ class SLMEnv:
                 if feasible_matrix[part_id, orientation_id] == 0:
                     break
                     
-                view, allocated = self.solution.add_part(self.metadata.parts[part_id].get_part_info(), orientation=orientation_id)
+                view, allocated = self.solution.add_part(self.metadata.parts[part_id], orientation=orientation_id)
             
             if allocated:
                 self.update_state(view=view, part_id=part_id)
@@ -235,7 +235,7 @@ class SLMEnv:
                 rank_ptr = 0
                 # Add a new batch (same size) and retry allocating
                 self.solution.add_batch(self.metadata.machine, self.metadata.process)
-                view, allocated = self.solution.add_part(self.metadata.parts[part_id].get_part_info(),
+                view, allocated = self.solution.add_part(self.metadata.parts[part_id],
                                                          orientation=orientation_rank[rank_ptr])
                 
                 if allocated:

@@ -29,8 +29,8 @@ class Batch:
         
         # Fetch LWH params from instance of class Machine
         #! Real space for bin packing: (L - 2*Margin) * (W - 2*Margin)
-        self.L = machine.build_l - 2 * self.process.min_distance_part_platform
-        self.W = machine.build_w - 2 * self.process.min_distance_part_platform
+        self.L = machine.build_l - 2 * process.min_distance_part_platform
+        self.W = machine.build_w - 2 * process.min_distance_part_platform
         self.H = machine.build_h
         
         # define self.machine and self.process for easier access of params

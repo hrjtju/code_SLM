@@ -134,6 +134,7 @@ class Part(ItemFromJson):
         
         self.get_from_dict(d)
     
+    # Can it be simplified?
     def get_part_info(self, orientation: int) -> dict:
         """
         Returns a specific dict when orientation is specified for batch state.
@@ -141,6 +142,7 @@ class Part(ItemFromJson):
         build_param = self.build_params[orientation]
         return {
             "type": self.part_type,
+            "O": orientation,
             "volume": self.volume,
             "surface_area": self.surface_area,
             "L": build_param["L"]+self.gap,
