@@ -59,6 +59,7 @@
         "laser_speed_volume": 1,
         "laser_speed_support": 1, 
         "layer_thickness": 1,
+        "recoater_time_single": 11,
         "heat_time": 1,
         "cool_time": 1
     },

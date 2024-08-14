@@ -43,7 +43,7 @@ class Batch:
         
         # Trial, Using RectPack Algorithm
         self.bin_true = newPacker(mode=PackingMode.Online,
-                                       rotation=False
+                                       rotation=True
                                        ) # depends on the packing algorithm
         
         # Added Margin between parts and platform edges
@@ -110,6 +110,13 @@ class Batch:
         occupied_area = sum(map(lambda x:x["L"]*x["W"], self.parts_info))
         return total_area - occupied_area
     
+    def get_occupied_ratio(self) -> float:
+        """
+        Returns the proportion of area occupied by parts out of all area of the machine that can be used
+        0 <= output_value <= 1 
+        """
+        return 0 if self.empty() else 1 - (self.get_rest_area() / (self.L * self.W))
+        
     def get_total_surface_area(self) -> float:
         """
         Returns total <u>surface area</u> of all parts in this batch
@@ -168,14 +175,15 @@ class Batch:
         """
         Print self.parts_into into a file.
         """
-        for idx, part in enumerate(self.parts_info):
-            print(f"{idx = }, {part}", file=fp)
+        for idx, (part, (_, x, y, w, *_)) in enumerate(zip(self.parts_info, self.bin_true.rect_list())):
+            print(f"{idx = :03d}, {x = :.2f}, {y = :.2f}, Rotated = {str(w == part['L']):5s}, {part}", file=fp)
 
+        print(f"occupied_ratio: {self.get_occupied_ratio() * 100:.2f}%", file=fp)
         print(f"rest_area: {self.get_rest_area()}", file=fp)
         print(f"slice_number: {self.slice_number}", file=fp)
-        print(f"get_total_surface_area: {self.get_total_surface_area()}", file=fp)
-        print(f"get_total_part_volume: {self.get_total_part_volume()}", file=fp)
-        print(f"get_total_support_volume: {self.get_total_support_volume()}", file=fp)
+        print(f"total_surface_area: {self.get_total_surface_area()}", file=fp)
+        print(f"total_part_volume: {self.get_total_part_volume()}", file=fp)
+        print(f"total_support_volume: {self.get_total_support_volume()}", file=fp)
         print(f"Time: {calculate_batch_time(self)['total_time']}", file=fp)
         print(f"Energy: {calculate_batch_energy(self)['EPC']}", file=fp)
     
@@ -186,6 +194,7 @@ class Batch:
         view = self.get_current_view(stretch=False, show=True)
         plt.figure(dpi=100, figsize=(6, 5))
         ax = plt.imshow(view, cmap="Blues")
+        plt.gca().invert_yaxis()
         plt.colorbar()
         plt.grid(alpha=0.1)
         plt.savefig(dir)
@@ -301,7 +310,6 @@ def calculate_batch_time(
     #! MISSING
     # TODO: Report the issue and find ways to fill them up, and ALL .json files
     # TODO: should be modified (May completed quickly using Regex Expressions).
-    process.recoater_time_single = 1 #! Temporarily solve
     recoater_time_all = process.recoater_time_single * b.slice_number
     
     cooling_time = delta_t_cooling

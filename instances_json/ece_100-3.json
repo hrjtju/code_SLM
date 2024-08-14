@@ -148,6 +148,7 @@
         "laser_speed_volume": 1650.0,
         "laser_speed_support": 1000.0,
         "layer_thickness": 0.03,
+        "recoater_time_single": 11,
         "heat_time": 2115.0,
         "cool_time": 5380.0
     },

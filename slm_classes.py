@@ -115,6 +115,7 @@ class Process(ItemFromJson):
         self.laser_speed_volume = None
         self.laser_speed_support = None 
         self.layer_thickness = None
+        self.recoater_time_single = None
         self.heat_time = None
         self.cool_time = None
 
@@ -235,8 +236,9 @@ class MetaData(ItemFromJson):
         # Filter out all orientations that cannot fit-in a empty batch
         for i in range(orient_num):
             info_dict = self.parts[part_id].get_part_info(i)
-            if info_dict["L"] > self.machine.build_l \
-                or info_dict["W"] > self.machine.build_w \
+            
+            # TODO: Check the logic
+            if min(info_dict["L"], info_dict["W"]) > max(self.machine.build_l, self.machine.build_w) \
                 or info_dict["H"] > self.machine.build_h:
             
                 out_vec[i] = 0

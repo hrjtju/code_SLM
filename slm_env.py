@@ -189,7 +189,8 @@ class SLMEnv:
         allocated = False
         
         # Select part_id and orientation_id
-        part_id = torch.argmax(torch.sum(feasible_matrix, dim=-1))
+        # TODO: 
+        part_id = torch.argmax(torch.sum(feasible_matrix, dim=-1) / torch.sum(self.metadata.mask_matrix(), dim=-1))
         
         # Get the rank of different orientations of the part selected according to the output score
         orientation_rank = torch.argsort(feasible_matrix[part_id].reshape(-1))
@@ -215,6 +216,8 @@ class SLMEnv:
         else:
             # Try other printing orientations, If all orientations does not fit, truncate the env.
             while not allocated:
+                # TODO: Apply negative reward?
+                
                 rank_ptr += 1
                 orientation_id = orientation_rank[rank_ptr]
                 
@@ -255,4 +258,3 @@ class SLMEnv:
         self.last_criterion = criterion
         
         return self.curr_state, reward, terminated, truncated, info
-
