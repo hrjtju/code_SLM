@@ -13,15 +13,15 @@
 - [x] **ISSUES TO BE FIXED** function `calculate_batch_time`
 - [x] function `calculate_batch_energy`
 - [x] reward assignment
-- [ ] Add & Modify comments and docstring
+- [x] Add & Modify comments and docstring
 
 ### 2 Testing the Environment
 
-- [ ] SLM Classes
-- [ ] SLM Environment
-- [ ] Bin Packing
-- [ ] Batch Solution
+- [x] SLM Classes
+- [x] Bin Packing
+- [x] Batch Solution
 - [ ] Time & Energy Calculation
+- [ ] SLM Environment
 - [ ] Joint Testings
 
 ### 3 Training
