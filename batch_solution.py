@@ -176,8 +176,8 @@ class Batch:
         print(f"get_total_surface_area: {self.get_total_surface_area()}", file=fp)
         print(f"get_total_part_volume: {self.get_total_part_volume()}", file=fp)
         print(f"get_total_support_volume: {self.get_total_support_volume()}", file=fp)
-        print(f"Time: {calculate_batch_time(self)}")
-        print(f"Energy: {calculate_batch_energy()(self)}")
+        print(f"Time: {calculate_batch_time(self)['total_time']}", file=fp)
+        print(f"Energy: {calculate_batch_energy(self)['EPC']}", file=fp)
     
     def show_view(self, dir: str) -> None:
         """
@@ -236,13 +236,13 @@ class Solution:
         # for b in self.batches:
         #     sum_time += calculate_batch_time(b)
         # return sum 
-        return 0 if self.empty() else sum(map(calculate_batch_time, self.batches))
+        return 0 if self.empty() else sum(map(lambda x:calculate_batch_time(x)["total_time"], self.batches))
     
     def calculate_energy(self) -> float:
         """
         Calculate the power needed for the solution UNTIL NOW
         """
-        return 0 if self.empty() else sum(map(calculate_batch_energy, self.batches))
+        return 0 if self.empty() else sum(map(lambda x:calculate_batch_energy(x)["EPC"], self.batches))
     
     def show(self, out_dir: str = f"./solution/") -> None:
         """
@@ -301,7 +301,8 @@ def calculate_batch_time(
     #! MISSING
     # TODO: Report the issue and find ways to fill them up, and ALL .json files
     # TODO: should be modified (May completed quickly using Regex Expressions).
-    recoater_time_all = process.recoater_time_single * b.slice_number()
+    process.recoater_time_single = 1 #! Temporarily solve
+    recoater_time_all = process.recoater_time_single * b.slice_number
     
     cooling_time = delta_t_cooling
     
@@ -378,7 +379,7 @@ def calculate_batch_energy(
     
     K = machine.power_coefficient.values
     # Equivalent to EPC = np.dot(np.dot(P, K), T.T)
-    EPC = P.T @ K @ T # An number
+    EPC = (P.T @ K @ T).reshape(-1).item() # An number
     
     # PKT[i][j] = P[i] K[i][j] T[j]
     # Hadamard product with broadcasting
@@ -388,7 +389,7 @@ def calculate_batch_energy(
     #     for j in range(7):
     #         K_row.append(int(P[i] * K[i][j] * T[j]))
     #     PKT.append(K_row)
-    PKT = (P.T * K * T).astype(np.int64)
+    PKT = (P * K * T.T).astype(np.int64)
     
     energy_matrix = pd.DataFrame(
         data=PKT, 
