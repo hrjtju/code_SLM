@@ -156,7 +156,7 @@ class Part(ItemFromJson):
         Get the area of a part's projection to bottom of the batch (Including gaps).
         """
         info_dict = self.get_part_info(orientation)
-        return info_dict["L"] + info_dict["W"]
+        return info_dict["L"] * info_dict["W"]
 
 # collects all data in one json file.
 class MetaData(ItemFromJson):
