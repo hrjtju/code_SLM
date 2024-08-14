@@ -168,18 +168,29 @@ class Batch:
         """
         Print self.parts_into into a file.
         """
-        for idx, part in self.parts_info:
+        for idx, part in enumerate(self.parts_info):
             print(f"{idx = }, {part}", file=fp)
+
+        print(f"rest_area: {self.get_rest_area()}", file=fp)
+        print(f"slice_number: {self.slice_number}", file=fp)
+        print(f"get_total_surface_area: {self.get_total_surface_area()}", file=fp)
+        print(f"get_total_part_volume: {self.get_total_part_volume()}", file=fp)
+        print(f"get_total_support_volume: {self.get_total_support_volume()}", file=fp)
+        print(f"Time: {calculate_batch_time(self)}")
+        print(f"Energy: {calculate_batch_energy()(self)}")
     
     def show_view(self, dir: str) -> None:
         """
         Print view of the batch in in terms of a matrix as an image
         """
         view = self.get_current_view(stretch=False, show=True)
-        plt.imshow(view)
+        plt.figure(dpi=100, figsize=(6, 5))
+        ax = plt.imshow(view, cmap="Blues")
         plt.colorbar()
-        plt.grid()
+        plt.grid(alpha=0.1)
         plt.savefig(dir)
+        
+        del ax
          
 
 class Solution:
@@ -238,10 +249,13 @@ class Solution:
         Display all the part_ls and view of all batches of the solution.
         """
         with open(os.path.join(out_dir, "contains.txt"), 'w') as f:
+            print(f"Solution Time: {self.calculate_time()}", file=f)
+            print(f"Solution Energy: {self.calculate_energy()}", file=f)
+            
             for bid, b in enumerate(self.batches):
-                print(f"{'=' * 30}\n\t\tBatch No. {bid}{'=' * 30}", file=f)
+                print(f"{'=' * 30}\n\t\tBatch No. {bid}\n{'=' * 30}", file=f)
                 b.show_parts(f)
-                b.show_view(f"{out_dir}/batch_{bid:02d}.img")
+                b.show_view(f"{out_dir}/batch_{bid:02d}.jpg")
 
     def empty(self) -> bool:
         return (len(self.batches) < 1) or all(map(lambda x:x.empty(), self.batches))
