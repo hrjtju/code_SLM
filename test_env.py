@@ -18,8 +18,13 @@ print(f"Testing file name: \t{file_dir}")
 
 metadata = load_json_to_class(file_dir)
 
+part_num = len(metadata.parts)
+ori_num = len(min(metadata.parts, key=lambda x: len(x.build_params)).build_params)
+
+print(f"{part_num = }, {ori_num = }")
+
 # -------------------slm_classes.py-------------------
-print("\n-------------------slm_classes.py-------------------\n")
+# print("\n-------------------slm_classes.py-------------------\n")
 # Testing ALL params
 # metadata.show()
 
@@ -31,49 +36,67 @@ print("\n-------------------slm_classes.py-------------------\n")
 
 
 # -------------------batch_solution.py-------------------
+# print("\n-------------------batch_solution.py-------------------\n")
+# solution_test = Solution(view_shape=(224, 224))
+# solution_test.add_batch(metadata.machine, metadata.process)
+
+# # Add type 0
+
+# print(f"\n Add type 0 orientation 0 \n")
+# print(f"{solution_test.get_batch().empty() = }")
+# print(f"{metadata.parts[0].get_part_info(0) = }")
+# print(f"{solution_test.get_batch().slice_number}")
+
+# # The get_part_info() method already takes in orientation parameter, 
+# # add_part() can be simplified to taking only one param
+# # by letting get_part_info() to output a dict that contains key "O".
+# _, success = solution_test.add_part(metadata.parts[0], 0)
+
+# print(f"{success = }")
+# print(f"{solution_test.get_batch().empty() = }")
+# print(f"{solution_test.get_batch().get_total_part_volume() = }")
+# print(f"{solution_test.get_batch().get_total_surface_area() = }")
+# print(f"{solution_test.get_batch().get_total_support_volume() = }")
+# print(f"{solution_test.get_batch().get_rest_area() = }")
+
+# view = solution_test.get_current_view(stretch=False, show=True)
+# plt.imshow(view)
+
+# # Add type 0 orientation 1
+
+# print(f"\n Add type 0 orientation 1 \n")
+# print(f"{solution_test.get_batch().empty() = }")
+# print(f"{metadata.parts[0].build_params = }")
+# print(f"{metadata.parts[0].get_part_info(1) = }")
+# print(f"{solution_test.get_batch().slice_number}")
+
+# solution_test.add_part(metadata.parts[0], 1)
+
+# print(f"{solution_test.get_batch().empty() = }")
+# print(f"{solution_test.get_batch().get_total_part_volume() = }")
+# print(f"{solution_test.get_batch().get_total_surface_area() = }")
+# print(f"{solution_test.get_batch().get_total_support_volume() = }")
+# print(f"{solution_test.get_batch().get_rest_area() = }")
+
+# view = solution_test.get_current_view(stretch=False, show=True)
+# plt.imshow(view)
+
+# print(f"{solution_test.get_batch().slice_number}")
+
+
+# -------------------batch_solution.py-------------------
+# TODO: Check accuracy of functions 
 print("\n-------------------batch_solution.py-------------------\n")
 solution_test = Solution(view_shape=(224, 224))
-solution_test.add_batch(metadata.machine, metadata.process)
 
 # Add type 0
 
-print(f"\n Add type 0 orientation 0 \n")
-print(f"{solution_test.get_batch().empty() = }")
-print(f"{metadata.parts[0].get_part_info(0) = }")
-print(f"{solution_test.get_batch().slice_number}")
+for _ in range(10):
+    solution_test.add_batch(metadata.machine, metadata.process)
+    for _ in range(20):
+        type_id, ori_id = random.randint(0, part_num-1), random.randint(0, ori_num-1)
+        _, success = solution_test.add_part(metadata.parts[type_id], ori_id)
 
-# The get_part_info() method already takes in orientation parameter, 
-# add_part() can be simplified to taking only one param
-# by letting get_part_info() to output a dict that contains key "O".
-_, success = solution_test.add_part(metadata.parts[0], 0)
+solution_test.show(out_dir="./solution_test")
 
-print(f"{success = }")
-print(f"{solution_test.get_batch().empty() = }")
-print(f"{solution_test.get_batch().get_total_part_volume() = }")
-print(f"{solution_test.get_batch().get_total_surface_area() = }")
-print(f"{solution_test.get_batch().get_total_support_volume() = }")
-print(f"{solution_test.get_batch().get_rest_area() = }")
-
-view = solution_test.get_current_view(stretch=False, show=True)
-plt.imshow(view)
-
-# Add type 0 orientation 1
-
-print(f"\n Add type 0 orientation 1 \n")
-print(f"{solution_test.get_batch().empty() = }")
-print(f"{metadata.parts[0].build_params = }")
-print(f"{metadata.parts[0].get_part_info(1) = }")
-print(f"{solution_test.get_batch().slice_number}")
-
-solution_test.add_part(metadata.parts[0], 1)
-
-print(f"{solution_test.get_batch().empty() = }")
-print(f"{solution_test.get_batch().get_total_part_volume() = }")
-print(f"{solution_test.get_batch().get_total_surface_area() = }")
-print(f"{solution_test.get_batch().get_total_support_volume() = }")
-print(f"{solution_test.get_batch().get_rest_area() = }")
-
-view = solution_test.get_current_view(stretch=False, show=True)
-plt.imshow(view)
-
-print(f"{solution_test.get_batch().slice_number}")
+# ------------------- slm_env.py -------------------
