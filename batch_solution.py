@@ -88,7 +88,8 @@ class Batch:
             
             if show:
                 # Add lacing to each rectangle for visual reference.
-                grid[floor(x+1):ceil(x+w-1), floor(y+1):floor(y+h-1)] = -1
+                grid[floor(x):ceil(x+w), floor(y):ceil(y+h)] = -1
+                grid[floor(x+1):ceil(x+w-1), floor(y+1):floor(y+h-1)] = rid["height"]
         
         # Stretch the view into standard size to fit in to NN.
         if stretch == True:
