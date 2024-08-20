@@ -1,0 +1,125 @@
+general_cfg:
+  action_space:
+    shape:
+    - 2
+    type:
+    - Discrete
+  algo_name: DQN
+  collect_traj: false
+  device: cpu
+  env_name: gym
+  exps_trucation_size: 1
+  interact_summary_fre: 10
+  interactor_device: cpu
+  is_learner_async: false
+  joyrl_version: 0.5.0
+  learner_device: cpu
+  load_checkpoint: false
+  load_model_step: best
+  load_path: Train_single_SingleSLM_DQN_20240819
+  max_episode: -1
+  max_step: 20
+  mode: train
+  model_save_fre: 500
+  n_interactors: 1
+  n_learners: 1
+  obs_space:
+    shape:
+    - 4
+    type:
+    - Box
+  online_eval: true
+  online_eval_episode: 10
+  policy_summary_fre: 100
+  restore_model_meta: true
+  reward_threshold: .inf
+  reward_threshold_limit: 10
+  seed: 1
+  share_buffer: true
+algo_cfg:
+  action_space:
+    size:
+    - 20
+    - 7
+    type:
+    - vector
+    - vector
+  batch_size: 16
+  branch_layers:
+  - layers:
+    - activation: relu
+      in_channel: 1
+      kernel_size: 4
+      layer_type: conv2d
+      out_channel: 16
+      stride: 2
+    - kernel_size: 2
+      layer_type: pooling
+      padding: 0
+      pooling_type: max2d
+      stride: 2
+    - layer_type: flatten
+    - layer_type: norm
+      norm_type: LayerNorm
+      normalized_shape: 512
+    - activation: relu
+      layer_size:
+      - 128
+      layer_type: linear
+    name: view
+  - layers:
+    - activation: relu
+      layer_size:
+      - 32
+      layer_type: linear
+    - activation: relu
+      layer_size:
+      - 32
+      layer_type: linear
+    name: lwh
+  - layers:
+    - activation: relu
+      layer_size:
+      - 256
+      layer_type: linear
+    - activation: relu
+      layer_size:
+      - 256
+      layer_type: linear
+    name: parts
+  buffer_type: REPLAY_QUE
+  epsilon_decay: 1000
+  epsilon_end: 0.01
+  epsilon_start: 0.99
+  gamma: 0.95
+  lr: 0.001
+  max_buffer_size: 10000
+  merge_layers:
+  - activation: relu
+    layer_size:
+    - 256
+    layer_type: linear
+  - activation: relu
+    layer_size:
+    - 256
+    layer_type: linear
+  obs_space:
+    size:
+    - - 1
+      - 224
+      - 224
+    - - 3
+    - - 20
+      - 7
+    type:
+    - image
+    - vector
+    - vector
+  target_update: 4
+env_cfg:
+  id: SingleSLM-v0
+  ignore_params:
+  - wrappers
+  - ignore_params
+  render_mode: null
+  wrappers: []

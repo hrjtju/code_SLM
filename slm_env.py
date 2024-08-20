@@ -89,13 +89,13 @@ class SingleSLMEnv(Env):
         self.solution = Solution(view_shape=self.view_shape)
         self.solution.add_batch(self.slm_metadata.machine,
                                 self.slm_metadata.process)
-        self.view_process_shape = (1, *view_shape)
+        self.view_process_shape = (1, view_shape[0], view_shape[1])
         
         # observation of the current batch
         self.curr_state = (
             self.solution.get_current_view().reshape(*self.view_process_shape),        # Current discretized view of the batch, Variable
             torch.tensor([self.L, self.W, self.H]),  # Real size of the batch, Constant
-            self.slm_metadata.init_state()               # Situation of all parts, Variable
+            self.slm_metadata.init_state().reshape(-1)               # Situation of all parts, Variable
         )
         
         # Initial reference for comparing criterion numbers.
@@ -103,11 +103,11 @@ class SingleSLMEnv(Env):
         
         # Gymnasium Env Spaces Setup
         self.observation_space = spaces.Tuple(spaces=[
-            spaces.Box(low=0, high=float("inf"), shape=(1, *view_shape)),
+            spaces.Box(low=0, high=float("inf"), shape=(1, view_shape[0], view_shape[1])),
             spaces.Box(low=0, high=float("inf"), shape=(3,)),
-            spaces.Box(low=0, high=float("inf"), shape=(max_part_type, max_orientation_num))
+            spaces.Box(low=0, high=float("inf"), shape=(max_part_type*max_orientation_num, ))
         ])
-        self.action_space = spaces.Discrete(max_part_type * max_orientation_num)
+        self.action_space = spaces.Box(low=0, high=float("inf"), shape=(max_part_type * max_orientation_num, 1))
     
     def get_unavailable_mask(self):
         """
@@ -165,7 +165,7 @@ class SingleSLMEnv(Env):
         self.curr_state = (
             view.reshape(*self.view_process_shape),
             self.last_state[1],
-            temp_part_state
+            temp_part_state.reshape(-1)
         )
     
     def done(self) -> None:
@@ -274,7 +274,7 @@ class SingleSLMEnv(Env):
 
 if __name__ == "__main__":
     print(joyrl.__version__) # print version
-    yaml_path = "./yaml_configurations/SingleSLMEnv-v0.yaml"
+    yaml_path = "./yaml_configurations/SingleSLMEnv-v0-DQN.yaml"
     slm_single_env = SingleSLMEnv(in_path="./instances_json/")
     joyrl.run(yaml_path=yaml_path, env=slm_single_env)
 

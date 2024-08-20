@@ -1,0 +1,57 @@
+2024-08-20 01:54:58 - Log_Trainer - INFO: - General Configs:
+2024-08-20 01:54:58 - Log_Trainer - INFO: - ================================================================================
+2024-08-20 01:54:58 - Log_Trainer - INFO: -         Name        	       Value        	        Type        
+2024-08-20 01:54:58 - Log_Trainer - INFO: -    joyrl_version    	       0.5.0        	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -       env_name      	        gym         	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -      obs_space      	{'type': ['Box'], 'shape': [4]}	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -     action_space    	{'type': ['Discrete'], 'shape': [2]}	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -      algo_name      	        DQN         	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -         mode        	       train        	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -  interactor_device  	        cpu         	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -    learner_device   	        cpu         	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -         seed        	         1          	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -   is_learner_async  	       False        	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -     max_episode     	         -1         	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -       max_step      	         20         	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -   reward_threshold  	        inf         	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: - reward_threshold_limit	         10         	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -     collect_traj    	       False        	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -    n_interactors    	         1          	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: - exps_trucation_size 	         1          	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -      n_learners     	         1          	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -     share_buffer    	        True        	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -     online_eval     	        True        	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: - online_eval_episode 	         10         	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -    model_save_fre   	        500         	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -   load_checkpoint   	       False        	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -  restore_model_meta 	        True        	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -      load_path      	Train_single_SingleSLM_DQN_20240819	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -   load_model_step   	        best        	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: - interact_summary_fre	         10         	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -  policy_summary_fre 	        100         	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -        device       	        cpu         	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: - ================================================================================
+2024-08-20 01:54:58 - Log_Trainer - INFO: - Algo Configs:
+2024-08-20 01:54:58 - Log_Trainer - INFO: - ================================================================================
+2024-08-20 01:54:58 - Log_Trainer - INFO: -         Name        	       Value        	        Type        
+2024-08-20 01:54:58 - Log_Trainer - INFO: -    epsilon_start    	        0.99        	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -     epsilon_end     	        0.01        	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -    epsilon_decay    	        1000        	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -        gamma        	        0.95        	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -          lr         	       0.001        	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -     buffer_type     	     REPLAY_QUE     	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -   max_buffer_size   	       10000        	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -      batch_size     	         16         	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -    target_update    	         4          	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -    branch_layers    	[{'name': 'view', 'layers': [{'layer_type': 'conv2d', 'in_channel': 1, 'out_channel': 16, 'kernel_size': 4, 'stride': 2, 'activation': 'relu'}, {'layer_type': 'pooling', 'pooling_type': 'max2d', 'kernel_size': 2, 'stride': 2, 'padding': 0}, {'layer_type': 'flatten'}, {'layer_type': 'norm', 'norm_type': 'LayerNorm', 'normalized_shape': 512}, {'layer_type': 'linear', 'layer_size': [128], 'activation': 'relu'}]}, {'name': 'lwh', 'layers': [{'layer_type': 'linear', 'layer_size': [32], 'activation': 'relu'}, {'layer_type': 'linear', 'layer_size': [32], 'activation': 'relu'}]}, {'name': 'parts', 'layers': [{'layer_type': 'linear', 'layer_size': [256], 'activation': 'relu'}, {'layer_type': 'linear', 'layer_size': [256], 'activation': 'relu'}]}]	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -     merge_layers    	[{'layer_type': 'linear', 'layer_size': [256], 'activation': 'relu'}, {'layer_type': 'linear', 'layer_size': [256], 'activation': 'relu'}]	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: - ================================================================================
+2024-08-20 01:54:58 - Log_Trainer - INFO: - Env Configs:
+2024-08-20 01:54:58 - Log_Trainer - INFO: - ================================================================================
+2024-08-20 01:54:58 - Log_Trainer - INFO: -         Name        	       Value        	        Type        
+2024-08-20 01:54:58 - Log_Trainer - INFO: -          id         	    SingleSLM-v0    	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -     render_mode     	        None        	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -       wrappers      	         []         	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: -    ignore_params    	['wrappers', 'ignore_params']	   <class 'str'>    
+2024-08-20 01:54:58 - Log_Trainer - INFO: - ================================================================================
+2024-08-20 01:55:00 - Log_Trainer - INFO: - [Trainer.run] Start training!
