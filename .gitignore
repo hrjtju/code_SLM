@@ -41,6 +41,8 @@ Thumbs.db
 joyrl/*
 false/*
 experiment-related-model/*
+tasks/*
+.vscode/*
 
 # Produced/Rendered Files
 *.html

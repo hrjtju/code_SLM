@@ -1,5 +1,11 @@
 {
     "cSpell.words": [
         "traj"
+    ],
+    "python.analysis.extraPaths": [
+        "./src",
+        "./modules",
+        "d:/anaconda/envs/ai_basic/",
+        "./joyrl/joyrl"
     ]
 }

@@ -18,10 +18,10 @@ general_cfg:
 algo_cfg:
   action_space:
     type: [vector, vector]
-    size: [20, 7]
+    size: [[20], [7]]
   obs_space:
     type: [image, vector, vector]
-    size: [[1, 224, 224], [3], [20, 7]]
+    size: [[1, 224, 224], [3], [140]]
 
   branch_layers:
     - name: view

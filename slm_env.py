@@ -107,7 +107,10 @@ class SingleSLMEnv(Env):
             spaces.Box(low=0, high=float("inf"), shape=(3,)),
             spaces.Box(low=0, high=float("inf"), shape=(max_part_type*max_orientation_num, ))
         ])
-        self.action_space = spaces.Box(low=0, high=float("inf"), shape=(max_part_type * max_orientation_num, 1))
+        self.action_space = spaces.Tuple(spaces=[
+            spaces.Box(low=0, high=float("inf"), shape=(max_part_type, )), 
+            spaces.Box(low=0, high=float("inf"), shape=(max_orientation_num, ))
+        ])
     
     def get_unavailable_mask(self):
         """
