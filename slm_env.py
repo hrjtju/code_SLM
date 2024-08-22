@@ -21,7 +21,8 @@ class SingleSLMEnv(Env):
     
     # load instance-meta data
     def __init__(self, 
-                 in_path: str = None, # Dir path in training and .json file path in testing stage
+                 in_path: str, # Dir path in training and .json file path in testing stage
+                 device: torch.device,
                  phase: Literal["Train", "Test"] = "Train", 
                  view_shape: Tuple[int, int] = (224, 224), 
                  max_part_type: int = 20,
@@ -45,6 +46,8 @@ class SingleSLMEnv(Env):
         """
         
         random.seed(seed)
+        
+        self.device = device
         
         self.name = "SingleSLMEnv"
         self.phase = phase
@@ -135,9 +138,12 @@ class SingleSLMEnv(Env):
     def reset(self, seed = 0):
         """
         Reset the env according to self.phase
+        
+        Returns: self.curr_state, info
         """
         if self.phase == "Train":
             self.__init__(in_path=self.in_path, 
+                          device=self.device,
                           phase=self.phase, 
                           view_shape=self.view_shape, 
                           seed=seed
@@ -159,10 +165,10 @@ class SingleSLMEnv(Env):
         
         # get the state matrix of parts at this timestamp
         temp_part_state = self.last_state[-1]
-        assert temp_part_state[part_id, 0] > 0, "Error, trying to allocate type of part which is already 0 parts."
+        assert temp_part_state.reshape(self.max_part_type, -1)[part_id, 0] > 0, "Error, trying to allocate type of part which is already 0 parts."
         
         # Decrement the number of type part_id by 1 (with assertion that it must greater than 0)
-        temp_part_state[part_id, 0] -= 1
+        temp_part_state.view(self.max_part_type, -1)[part_id, 0] -= 1
         
         # Create new self.curr_state.
         self.curr_state = (
@@ -176,7 +182,7 @@ class SingleSLMEnv(Env):
         Check if all the parts are allocated
         """
         # If any of the kind of part have unallocated instances, return False
-        return not any(self.curr_state[-1][:, 0])
+        return not any(self.curr_state[-1].reshape(self.max_part_type, -1)[:, 0])
     
     def step(
         self, 
@@ -184,9 +190,10 @@ class SingleSLMEnv(Env):
         ) -> Tuple[Tensor, float, bool, bool, str]:
         """
         Update the Env according to the action.
-        
         Action: long tensor shaped 
-            [ max_part_type * max_orientation_num ].
+            [ max_part_type * max_orientation_num ]
+        Returns: 
+            self.curr_state, reward, terminated, truncated, info
         """
         
         terminated = False
@@ -194,22 +201,19 @@ class SingleSLMEnv(Env):
         info = None
         reward = 0
         
-        # Reshape action vector:
-        #   [ max_part_type * max_orientation_num ] --> [ max_part_type, max_orientation_num ]
-        out_matrix = action.reshape(self.slm_metadata.max_part_type, self.slm_metadata.max_orientation_num)
-        
-        # Perform softmax to ensure all the instances are strictly greater than 0
-        feasible_matrix = torch.softmax(out_matrix, dim=None) * self.slm_metadata.mask_matrix()
+        part_d, ori_d = list(map(lambda x:torch.softmax(x, -1), action))
         
         # Flag var, Whether the part is allocated successfully
         allocated = False
         
         # Select part_id and orientation_id
         # TODO: 
-        part_id = torch.argmax(torch.sum(feasible_matrix, dim=-1) / torch.sum(self.slm_metadata.mask_matrix(), dim=-1))
+        part_id = torch.argmax(part_d.reshape(-1).to(self.device) * \
+            (self.curr_state[-1].reshape(self.max_part_type, -1)[:, 0] > 0).to(self.device), dim=-1)
         
         # Get the rank of different orientations of the part selected according to the output score
-        orientation_rank = torch.argsort(feasible_matrix[part_id].reshape(-1))
+        orientation_rank = torch.argsort((ori_d.reshape(-1).to(self.device)\
+            * self.slm_metadata.mask_matrix()[part_id].reshape(-1).to(self.device)), descending=True)
         
         # Initialize pointer, and get the orientation id according to the pointer
         rank_ptr = 0
@@ -238,7 +242,7 @@ class SingleSLMEnv(Env):
                 orientation_id = orientation_rank[rank_ptr]
                 
                 # If the orientation is not feasible, then break the loop
-                if feasible_matrix[part_id, orientation_id] == 0:
+                if self.slm_metadata.mask_matrix()[part_id, orientation_id] == 0:
                     break
                     
                 view, allocated = self.solution.add_part(self.slm_metadata.parts[part_id], orientation=orientation_id)
