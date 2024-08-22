@@ -59,8 +59,8 @@ class SingleSLMEnv(Env):
         # randomly pick a json file in the training dir
         # and pack the training data into a class
         if self.phase == "Train":
-            load_path = random.choice(os.listdir(self.in_path))
-            self.slm_metadata = load_json_to_class(os.path.join(self.in_path, load_path))
+            self.load_path = random.choice(os.listdir(self.in_path))
+            self.slm_metadata = load_json_to_class(os.path.join(self.in_path, self.load_path))
             
         # if the phase is Test, choose the file indicated by the path.
         elif self.phase == "Test":
@@ -135,7 +135,7 @@ class SingleSLMEnv(Env):
         """
         ...
     
-    def reset(self, seed = 0):
+    def reset(self):
         """
         Reset the env according to self.phase
         
@@ -146,16 +146,14 @@ class SingleSLMEnv(Env):
                           device=self.device,
                           phase=self.phase, 
                           view_shape=self.view_shape, 
-                          seed=seed
+                          seed=random.random()
                           )
         elif self.phase == "Text":
             exit(0)
         else:
             raise NotImplementedError
         
-        info = "Reset Env"
-        
-        return self.curr_state, info
+        return self.curr_state, self.load_path
     
     def update_state(self, view: Tensor, part_id: int) -> None:
         """
@@ -212,8 +210,11 @@ class SingleSLMEnv(Env):
             (self.curr_state[-1].reshape(self.max_part_type, -1)[:, 0] > 0).to(self.device), dim=-1)
         
         # Get the rank of different orientations of the part selected according to the output score
-        orientation_rank = torch.argsort((ori_d.reshape(-1).to(self.device)\
-            * self.slm_metadata.mask_matrix()[part_id].reshape(-1).to(self.device)), descending=True)
+        masked_ranks = ori_d.reshape(-1).to(self.device)\
+            * self.slm_metadata.mask_matrix()[part_id].reshape(-1).to(self.device)
+        orientation_rank = torch.argsort((masked_ranks), descending=True)
+        orientation_rank = list(filter(lambda x:self.slm_metadata.mask_matrix()[part_id].reshape(-1)[x],
+                                       orientation_rank))
         
         # Initialize pointer, and get the orientation id according to the pointer
         rank_ptr = 0
@@ -236,14 +237,14 @@ class SingleSLMEnv(Env):
         else:
             # Try other printing orientations, If all orientations does not fit, truncate the env.
             while not allocated:
-                # TODO: Apply negative reward?
                 
                 rank_ptr += 1
-                orientation_id = orientation_rank[rank_ptr]
                 
                 # If the orientation is not feasible, then break the loop
-                if self.slm_metadata.mask_matrix()[part_id, orientation_id] == 0:
+                if (not self.slm_metadata.mask_matrix()[part_id, orientation_id].item()) or rank_ptr >= len(orientation_rank):
                     break
+                
+                orientation_id = orientation_rank[rank_ptr]
                     
                 view, allocated = self.solution.add_part(self.slm_metadata.parts[part_id], orientation=orientation_id)
             

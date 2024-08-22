@@ -225,7 +225,7 @@ class MetaData(ItemFromJson):
         Returns the mask vector of a single part
         """
         
-        out_vec = torch.zeros(self.max_orientation_num)
+        out_vec = torch.zeros(self.max_orientation_num, dtype=torch.bool)
         
         if part_id >= len(self.parts):
             return out_vec

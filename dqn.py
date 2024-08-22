@@ -19,6 +19,7 @@ import torch.nn as nn
 from torch import Tensor
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
+from tensorboardX import SummaryWriter
 
 from slm_env import SingleSLMEnv
 
@@ -199,17 +200,19 @@ class DQN:
 
 
 if __name__ == "__main__":
+    writer = SummaryWriter('./tf-logs')
+    
     warnings.filterwarnings("ignore")
     
-    lr = 2e-4
-    num_episodes = 500
+    lr = 2e-6
+    num_episodes = 10000
     hidden_dim = 128
-    gamma = 0.98
+    gamma = 1.00
     epsilon = 0.01
     target_update = 10
-    buffer_size = 10000
-    minimal_size = 500
-    batch_size = 32
+    buffer_size = 50000
+    minimal_size = 600
+    batch_size = 16
     device = torch.device("cuda")
     
     replay_buffer = ReplayBuffer(buffer_size)
@@ -217,15 +220,16 @@ if __name__ == "__main__":
     agent = DQN(lr, gamma, epsilon, target_update, device)
     
     return_list = []
+    instances_dict = {}
     
     env = SingleSLMEnv(in_path="./instances_json/", device=device)
     env_name = env.name
     
-    for i in range(600):
+    for i in range(10):
         with tqdm(total=int(num_episodes/10), desc=f"Iteration {i}", leave=False, position=0) as pbar:
             for i_episode in range(int(num_episodes/10)):
                 episode_return = 0
-                state, _ = env.reset()
+                state, instance = env.reset()
                 done = False
                 
                 while not done:
@@ -251,9 +255,19 @@ if __name__ == "__main__":
                         )
                         
                 return_list.append(episode_return)
+
+                episode_id = int(num_episodes / 10 * i + i_episode + 1)
+                moving_avg_return = np.mean(return_list[-100:] if len(return_list) > 100 else np.mean(return_list))
+                
                 pbar.set_postfix({
-                    "episode": f"{int(num_episodes / 10 * i + i_episode + 1):4d}",
-                    "return": f"{f'{np.mean(return_list[-10:] if len(return_list) > 10 else np.mean(return_list)):.6e}':12s}"
+                    "episode": f"{episode_id:4d}",
+                    "return": f"{f'{moving_avg_return:.6e}':12s}"
                 })
+
+                instances_dict[instance] = 1 if instance not in instances_dict else instances_dict[instance]+1
+                
+                writer.add_scalar("Avg Episode Return", moving_avg_return, episode_id)
+                writer.add_scalar(f"{instance}", scalar_value=episode_return, global_step=instances_dict.get(instance))
+                
                 pbar.update(1)
-        
+                # asd
