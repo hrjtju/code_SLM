@@ -43,6 +43,7 @@ false/*
 experiment-related-model/*
 tasks/*
 .vscode/*
+tf-logs/*
 
 # Produced/Rendered Files
 *.html

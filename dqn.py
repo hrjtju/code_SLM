@@ -237,7 +237,8 @@ if __name__ == "__main__":
                     next_state, reward, terminate, truncate, _ = env.step(action)
                     done = terminate or truncate
                     
-                    replay_buffer.add(*list(map(lambda x: to_device(x, device), [state, action, reward, next_state, done])))
+                    replay_buffer.add(*list(map(lambda x: to_device(x, "cpu"), [state, action, reward, next_state, done])))
+                    # replay_buffer.add(state, action, reward, next_state, done)
                     
                     state = next_state
                     episode_return += reward
@@ -246,11 +247,11 @@ if __name__ == "__main__":
                         b_s, b_a, b_r, b_ns, b_d = replay_buffer.sample(batch_size)
                         agent.update(
                             transition_dict=dict(
-                                states = b_s,
-                                actions = b_a,
-                                next_states = b_ns,
-                                rewards = b_r,
-                                dones = b_d
+                                states = to_device(b_s, device),
+                                actions = to_device(b_a, device),
+                                next_states = to_device(b_ns, device),
+                                rewards = to_device(b_r, device),
+                                dones = to_device(b_d, device)
                             )
                         )
                         
