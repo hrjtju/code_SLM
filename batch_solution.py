@@ -1,3 +1,4 @@
+from functools import partial
 import os
 from typing import Tuple, List, Dict, Union
 import torch
@@ -24,7 +25,7 @@ class Batch:
     def __init__(self, 
                  machine: Machine,
                  process: Process,
-                 view_shape: tuple
+                 view_shape: tuple,
                  ) -> None:
         
         # Fetch LWH params from instance of class Machine
@@ -199,6 +200,11 @@ class Batch:
         plt.grid(alpha=0.1)
         plt.savefig(dir)
         
+        try:
+            plt.close()
+        except:
+            pass
+        
         del ax
          
 
@@ -206,7 +212,11 @@ class Solution:
     """
     A Solution to a instance contains multiple batches.
     """
-    def __init__(self, view_shape: Tuple[int, int]) -> None:
+    def __init__(self, 
+                 view_shape: Tuple[int, int],
+                 instance_name: str = "None",
+                 ) -> None:
+        self.instance_name = instance_name
         self.view_shape = view_shape
         self.batches: List[Batch] = []
     
@@ -257,7 +267,12 @@ class Solution:
         """
         Display all the part_ls and view of all batches of the solution.
         """
+        if not os.path.exists(out_dir):
+            os.mkdir(out_dir)
+        
         with open(os.path.join(out_dir, "contains.txt"), 'w') as f:
+            print(f"\n\t {self.instance_name} \n", file=f)
+            
             print(f"Solution Time: {self.calculate_time()}", file=f)
             print(f"Solution Energy: {self.calculate_energy()}", file=f)
             

@@ -89,7 +89,7 @@ class SingleSLMEnv(Env):
         self.H = self.slm_metadata.machine.build_h
         
         # Create an instance of class Solution and initialize it by calling .add_batch() method.
-        self.solution = Solution(view_shape=self.view_shape)
+        self.solution = Solution(view_shape=self.view_shape, instance_name=self.load_path)
         self.solution.add_batch(self.slm_metadata.machine,
                                 self.slm_metadata.process)
         self.view_process_shape = (1, view_shape[0], view_shape[1])
