@@ -1,0 +1,68 @@
+
+	 ece_30-3.json 
+
+Solution Time: 246628.88525355415
+Solution Energy: 1642537473.7574584
+==============================
+		Batch No. 0
+==============================
+idx = 000, x = 0.00, y = 0.00, Rotated = True , {'type': 16.0, 'O': 1, 'volume': 51532.0, 'surface_area': 15176.0, 'L': 73.08500000000001, 'W': 76.052, 'H': 58.061, 'S': 2273.516}
+idx = 001, x = 0.00, y = 76.05, Rotated = True , {'type': 12.0, 'O': 2, 'volume': 46500.0, 'surface_area': 27732.0, 'L': 88.355, 'W': 96.262, 'H': 85.766, 'S': 28006.499}
+idx = 002, x = 0.00, y = 172.31, Rotated = False, {'type': 20.0, 'O': 2, 'volume': 12012.0, 'surface_area': 5540.0, 'L': 48.95, 'W': 41.354, 'H': 37.537, 'S': 1441.866}
+idx = 003, x = 41.35, y = 172.31, Rotated = True , {'type': 1.0, 'O': 2, 'volume': 6744.0, 'surface_area': 8607.833, 'L': 32.14, 'W': 41.957, 'H': 45.99, 'S': 2174.0}
+idx = 004, x = 73.49, y = 172.31, Rotated = True , {'type': 8.0, 'O': 2, 'volume': 2105.0, 'surface_area': 2160.0, 'L': 36.275, 'W': 39.177, 'H': 33.543, 'S': 559.654}
+idx = 005, x = 88.36, y = 0.00, Rotated = True , {'type': 4.0, 'O': 2, 'volume': 105909.0, 'surface_area': 45458.331, 'L': 149.045, 'W': 103.199, 'H': 155.67, 'S': 34743.0}
+idx = 006, x = 88.36, y = 103.20, Rotated = False, {'type': 11.0, 'O': 1, 'volume': 13136.0, 'surface_area': 5670.0, 'L': 68.688, 'W': 86.25, 'H': 35.104, 'S': 718.502}
+idx = 007, x = 174.61, y = 103.20, Rotated = False, {'type': 5.0, 'O': 2, 'volume': 28588.135, 'surface_area': 20398.789, 'L': 86.745, 'W': 70.922, 'H': 76.74, 'S': 25217.0}
+idx = 008, x = 109.77, y = 189.94, Rotated = True , {'type': 6.0, 'O': 2, 'volume': 6310.0, 'surface_area': 9792.0, 'L': 37.232, 'W': 47.222, 'H': 80.43, 'S': 5187.0}
+idx = 009, x = 147.00, y = 189.94, Rotated = True , {'type': 10.0, 'O': 0, 'volume': 3850.0, 'surface_area': 6134.0, 'L': 51.871, 'W': 51.871, 'H': 7.0, 'S': 577.0}
+idx = 010, x = 198.87, y = 189.94, Rotated = False, {'type': 7.0, 'O': 2, 'volume': 6701.0, 'surface_area': 7554.0, 'L': 53.392, 'W': 44.296, 'H': 50.77, 'S': 1254.614}
+occupied_ratio: 86.38%
+rest_area: 8375.002593000005
+slice_number: 5189
+total_surface_area: 154222.95299999998
+total_part_volume: 283387.135
+total_support_volume: 102152.651
+Time: 103093.92517760144
+Energy: 654235894.894874
+==============================
+		Batch No. 1
+==============================
+idx = 000, x = 0.00, y = 0.00, Rotated = True , {'type': 14.0, 'O': 2, 'volume': 46432.0, 'surface_area': 27592.0, 'L': 86.374, 'W': 73.586, 'H': 96.474, 'S': 6831.376}
+idx = 001, x = 86.37, y = 0.00, Rotated = False, {'type': 9.0, 'O': 1, 'volume': 9394.0, 'surface_area': 3705.0, 'L': 43.187, 'W': 46.514, 'H': 48.881, 'S': 430.126}
+idx = 002, x = 132.89, y = 0.00, Rotated = False, {'type': 10.0, 'O': 2, 'volume': 3850.0, 'surface_area': 6134.0, 'L': 40.241, 'W': 45.575, 'H': 41.898, 'S': 1643.661}
+idx = 003, x = 132.89, y = 40.24, Rotated = True , {'type': 2.0, 'O': 1, 'volume': 37635.0, 'surface_area': 17532.0, 'L': 88.349, 'W': 82.716, 'H': 76.41, 'S': 14668.0}
+idx = 004, x = 178.46, y = 0.00, Rotated = True , {'type': 1.0, 'O': 0, 'volume': 6744.0, 'surface_area': 8607.833, 'L': 67.539, 'W': 34.617999999999995, 'H': 18.0, 'S': 1724.0}
+idx = 005, x = 0.00, y = 122.96, Rotated = False, {'type': 4.0, 'O': 0, 'volume': 105909.0, 'surface_area': 45458.331, 'L': 79.0, 'W': 179.0, 'H': 36.6, 'S': 36239.0}
+occupied_ratio: 55.26%
+rest_area: 27518.358156999995
+slice_number: 3216
+total_surface_area: 109029.16399999999
+total_part_volume: 209964.0
+total_support_volume: 61536.163
+Time: 69861.5126238589
+Energy: 450787961.47723955
+==============================
+		Batch No. 2
+==============================
+idx = 000, x = 0.00, y = 0.00, Rotated = True , {'type': 5.0, 'O': 0, 'volume': 28588.135, 'surface_area': 20398.789, 'L': 87.0, 'W': 87.0, 'H': 60.93, 'S': 1183.0}
+idx = 001, x = 0.00, y = 87.00, Rotated = True , {'type': 17.0, 'O': 0, 'volume': 30416.0, 'surface_area': 28909.0, 'L': 90.39, 'W': 90.397, 'H': 72.563, 'S': 11322.0}
+idx = 002, x = 0.00, y = 177.40, Rotated = True , {'type': 9.0, 'O': 1, 'volume': 9394.0, 'surface_area': 3705.0, 'L': 43.187, 'W': 46.514, 'H': 48.881, 'S': 430.126}
+idx = 003, x = 87.00, y = 0.00, Rotated = False, {'type': 15.0, 'O': 0, 'volume': 66982.0, 'surface_area': 55677.0, 'L': 85.854, 'W': 95.324, 'H': 45.979, 'S': 11664.0}
+idx = 004, x = 182.32, y = 0.00, Rotated = False, {'type': 8.0, 'O': 1, 'volume': 2105.0, 'surface_area': 2160.0, 'L': 36.025999999999996, 'W': 39.968, 'H': 33.086, 'S': 340.987}
+idx = 005, x = 182.32, y = 36.03, Rotated = True , {'type': 7.0, 'O': 2, 'volume': 6701.0, 'surface_area': 7554.0, 'L': 53.392, 'W': 44.296, 'H': 50.77, 'S': 1254.614}
+idx = 006, x = 90.39, y = 85.85, Rotated = True , {'type': 2.0, 'O': 1, 'volume': 37635.0, 'surface_area': 17532.0, 'L': 88.349, 'W': 82.716, 'H': 76.41, 'S': 14668.0}
+idx = 007, x = 90.39, y = 168.57, Rotated = True , {'type': 19.0, 'O': 1, 'volume': 19267.0, 'surface_area': 10134.0, 'L': 91.402, 'W': 72.654, 'H': 85.561, 'S': 1332.349}
+idx = 008, x = 43.19, y = 177.40, Rotated = True , {'type': 13.0, 'O': 2, 'volume': 24764.0, 'surface_area': 7760.0, 'L': 46.342, 'W': 45.37, 'H': 63.233, 'S': 3485.271}
+idx = 009, x = 182.32, y = 80.32, Rotated = False, {'type': 18.0, 'O': 1, 'volume': 44567.0, 'surface_area': 18280.0, 'L': 74.895, 'W': 64.416, 'H': 59.948, 'S': 1073.179}
+idx = 010, x = 181.79, y = 155.22, Rotated = True , {'type': 3.0, 'O': 2, 'volume': 1029.0, 'surface_area': 1017.0, 'L': 31.82, 'W': 25.906, 'H': 26.88, 'S': 376.0}
+idx = 011, x = 213.61, y = 155.22, Rotated = True , {'type': 6.0, 'O': 0, 'volume': 6310.0, 'surface_area': 9792.0, 'L': 26.55, 'W': 89.7, 'H': 11.52, 'S': 3908.0}
+idx = 012, x = 0.00, y = 223.91, Rotated = True , {'type': 3.0, 'O': 0, 'volume': 1029.0, 'surface_area': 1017.0, 'L': 38.298, 'W': 23.762999999999998, 'H': 13.77, 'S': 98.0}
+occupied_ratio: 88.98%
+rest_area: 6774.820209999991
+slice_number: 2853
+total_surface_area: 183935.789
+total_part_volume: 278787.135
+total_support_volume: 51135.526
+Time: 73673.44745209382
+Energy: 537513617.385345

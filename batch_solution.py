@@ -177,7 +177,8 @@ class Batch:
         Print self.parts_into into a file.
         """
         for idx, (part, (_, x, y, w, *_)) in enumerate(zip(self.parts_info, self.bin_true.rect_list())):
-            print(f"{idx = :03d}, {x = :.2f}, {y = :.2f}, Rotated = {str(w == part['L']):5s}, {part}", file=fp)
+            print(f"{idx = :03d}, {x = :.2f}, {y = :.2f}, Rotated = {str(w == part['L']):5s},"
+                  f" {dict(map(lambda x:(x[0], x[1].item()) if isinstance(x[1], Tensor) else x, part.items()))}", file=fp)
 
         print(f"occupied_ratio: {self.get_occupied_ratio() * 100:.2f}%", file=fp)
         print(f"rest_area: {self.get_rest_area()}", file=fp)
@@ -193,7 +194,7 @@ class Batch:
         Print view of the batch in in terms of a matrix as an image
         """
         view = self.get_current_view(stretch=False, show=True)
-        plt.figure(dpi=100, figsize=(6, 5))
+        plt.figure(dpi=200, figsize=(6, 5))
         ax = plt.imshow(view, cmap="Blues")
         plt.gca().invert_yaxis()
         plt.colorbar()

@@ -1,52 +1,63 @@
 
 	 ec_25-5.json 
 
-Solution Time: 245507.45569321598
-Solution Energy: 1711102613.5075967
+Solution Time: 280869.73347099376
+Solution Energy: 1783885369.8642623
 ==============================
 		Batch No. 0
 ==============================
-idx = 000, x = 0.00, y = 0.00, Rotated = True , {'type': 2.0, 'O': tensor(2), 'volume': 37635.0, 'surface_area': 17532.0, 'L': 97.734, 'W': 80.535, 'H': 74.43, 'S': 3396.0}
-idx = 001, x = 97.73, y = 0.00, Rotated = True , {'type': 5.0, 'O': tensor(0), 'volume': 28588.1, 'surface_area': 20398.8, 'L': 87.0, 'W': 87.0, 'H': 60.93, 'S': 5542.0}
-idx = 002, x = 0.00, y = 80.53, Rotated = True , {'type': 5.0, 'O': tensor(1), 'volume': 28588.1, 'surface_area': 20398.8, 'L': 87.0, 'W': 87.0, 'H': 60.93, 'S': 5542.0}
-idx = 003, x = 0.00, y = 167.53, Rotated = False, {'type': 5.0, 'O': tensor(3), 'volume': 28588.1, 'surface_area': 20398.8, 'L': 79.68, 'W': 84.622, 'H': 76.74, 'S': 25150.0}
-idx = 004, x = 184.73, y = 0.00, Rotated = True , {'type': 1.0, 'O': tensor(4), 'volume': 6744.0, 'surface_area': 8607.8, 'L': 52.105, 'W': 38.117999999999995, 'H': 36.54, 'S': 2667.0}
-idx = 005, x = 84.62, y = 167.53, Rotated = True , {'type': 2.0, 'O': tensor(0), 'volume': 37635.0, 'surface_area': 17532.0, 'L': 83.0, 'W': 74.0, 'H': 51.93, 'S': 26353.0}
-idx = 006, x = 167.62, y = 87.00, Rotated = True , {'type': 5.0, 'O': tensor(3), 'volume': 28588.1, 'surface_area': 20398.8, 'L': 79.68, 'W': 84.622, 'H': 76.74, 'S': 25150.0}
-idx = 007, x = 184.73, y = 38.12, Rotated = False, {'type': 6.0, 'O': tensor(3), 'volume': 6310.0, 'surface_area': 9792.0, 'L': 26.55, 'W': 21.5, 'H': 79.71, 'S': 2425.0}
-idx = 008, x = 167.62, y = 171.62, Rotated = True , {'type': 4.0, 'O': tensor(3), 'volume': 105909.0, 'surface_area': 45458.3, 'L': 79.77, 'W': 46.588, 'H': 168.99, 'S': 44612.0}
-idx = 009, x = 87.00, y = 87.00, Rotated = False, {'type': 2.0, 'O': tensor(4), 'volume': 37635.0, 'surface_area': 17532.0, 'L': 78.987, 'W': 66.90899999999999, 'H': 76.65, 'S': 13779.0}
-idx = 010, x = 206.23, y = 38.12, Rotated = True , {'type': 1.0, 'O': tensor(2), 'volume': 6744.0, 'surface_area': 8607.8, 'L': 32.14, 'W': 41.957, 'H': 45.99, 'S': 2174.0}
-idx = 011, x = 167.62, y = 218.21, Rotated = False, {'type': 1.0, 'O': tensor(3), 'volume': 6744.0, 'surface_area': 8607.8, 'L': 27.99, 'W': 34.539, 'H': 47.55, 'S': 1489.0}
-idx = 012, x = 202.16, y = 218.21, Rotated = False, {'type': 1.0, 'O': tensor(3), 'volume': 6744.0, 'surface_area': 8607.8, 'L': 27.99, 'W': 34.539, 'H': 47.55, 'S': 1489.0}
-occupied_ratio: 93.45%
-rest_area: 4027.4098569999915
+idx = 000, x = 0.00, y = 0.00, Rotated = True , {'type': 2.0, 'O': 2, 'volume': 37635.0, 'surface_area': 17532.0, 'L': 97.734, 'W': 80.535, 'H': 74.43, 'S': 3396.0}
+idx = 001, x = 97.73, y = 0.00, Rotated = True , {'type': 1.0, 'O': 0, 'volume': 6744.0, 'surface_area': 8607.8, 'L': 67.539, 'W': 34.617999999999995, 'H': 18.0, 'S': 1724.0}
+idx = 002, x = 97.73, y = 34.62, Rotated = False, {'type': 5.0, 'O': 4, 'volume': 28588.1, 'surface_area': 20398.8, 'L': 83.164, 'W': 84.128, 'H': 71.07, 'S': 12042.0}
+idx = 003, x = 165.27, y = 0.00, Rotated = True , {'type': 1.0, 'O': 1, 'volume': 6744.0, 'surface_area': 8607.8, 'L': 48.839, 'W': 34.539, 'H': 41.67, 'S': 2596.0}
+idx = 004, x = 181.86, y = 34.54, Rotated = True , {'type': 1.0, 'O': 4, 'volume': 6744.0, 'surface_area': 8607.8, 'L': 52.105, 'W': 38.117999999999995, 'H': 36.54, 'S': 2667.0}
+idx = 005, x = 0.00, y = 80.53, Rotated = False, {'type': 2.0, 'O': 3, 'volume': 37635.0, 'surface_area': 17532.0, 'L': 83.0, 'W': 84.0, 'H': 64.02, 'S': 15453.0}
+idx = 006, x = 181.86, y = 72.66, Rotated = True , {'type': 1.0, 'O': 1, 'volume': 6744.0, 'surface_area': 8607.8, 'L': 48.839, 'W': 34.539, 'H': 41.67, 'S': 2596.0}
+idx = 007, x = 181.86, y = 107.20, Rotated = True , {'type': 1.0, 'O': 4, 'volume': 6744.0, 'surface_area': 8607.8, 'L': 52.105, 'W': 38.117999999999995, 'H': 36.54, 'S': 2667.0}
+idx = 008, x = 214.11, y = 0.00, Rotated = True , {'type': 3.0, 'O': 2, 'volume': 1029.0, 'surface_area': 1017.0, 'L': 31.82, 'W': 25.906, 'H': 26.88, 'S': 376.0}
+idx = 009, x = 0.00, y = 163.53, Rotated = False, {'type': 4.0, 'O': 0, 'volume': 105909.0, 'surface_area': 45458.3, 'L': 79.0, 'W': 179.0, 'H': 36.6, 'S': 36239.0}
+idx = 010, x = 179.00, y = 145.31, Rotated = False, {'type': 4.0, 'O': 3, 'volume': 105909.0, 'surface_area': 45458.3, 'L': 79.77, 'W': 46.588, 'H': 168.99, 'S': 44612.0}
+idx = 011, x = 84.00, y = 117.78, Rotated = True , {'type': 3.0, 'O': 2, 'volume': 1029.0, 'surface_area': 1017.0, 'L': 31.82, 'W': 25.906, 'H': 26.88, 'S': 376.0}
+idx = 012, x = 115.82, y = 117.78, Rotated = False, {'type': 6.0, 'O': 2, 'volume': 6310.0, 'surface_area': 9792.0, 'L': 37.232, 'W': 47.222, 'H': 80.43, 'S': 5187.0}
+occupied_ratio: 85.83%
+rest_area: 8716.37689
 slice_number: 5634
-total_surface_area: 223872.69999999995
-total_part_volume: 366452.4
-total_support_volume: 159768.0
-Time: 122958.21100360827
-Energy: 857398985.9654856
+total_surface_area: 201244.40000000002
+total_part_volume: 357764.1
+total_support_volume: 129931.0
+Time: 118487.18852557894
+Energy: 800613643.6217065
 ==============================
 		Batch No. 1
 ==============================
-idx = 000, x = 0.00, y = 0.00, Rotated = True , {'type': 3.0, 'O': tensor(4), 'volume': 1029.0, 'surface_area': 1017.0, 'L': 36.711, 'W': 24.9, 'H': 22.41, 'S': 536.0}
-idx = 001, x = 36.71, y = 0.00, Rotated = False, {'type': 3.0, 'O': tensor(3), 'volume': 1029.0, 'surface_area': 1017.0, 'L': 23.676000000000002, 'W': 23.762999999999998, 'H': 28.29, 'S': 0.0}
-idx = 002, x = 60.47, y = 0.00, Rotated = False, {'type': 6.0, 'O': tensor(1), 'volume': 6310.0, 'surface_area': 9792.0, 'L': 44.71, 'W': 81.166, 'H': 60.57, 'S': 3726.0}
-idx = 003, x = 0.00, y = 24.90, Rotated = False, {'type': 4.0, 'O': tensor(3), 'volume': 105909.0, 'surface_area': 45458.3, 'L': 79.77, 'W': 46.588, 'H': 168.99, 'S': 44612.0}
-idx = 004, x = 141.64, y = 0.00, Rotated = False, {'type': 6.0, 'O': tensor(4), 'volume': 6310.0, 'surface_area': 9792.0, 'L': 39.561, 'W': 83.178, 'H': 57.36, 'S': 3737.0}
-idx = 005, x = 141.64, y = 39.56, Rotated = True , {'type': 3.0, 'O': tensor(0), 'volume': 1029.0, 'surface_area': 1017.0, 'L': 38.298, 'W': 23.762999999999998, 'H': 13.77, 'S': 515.0}
-idx = 006, x = 179.94, y = 39.56, Rotated = False, {'type': 1.0, 'O': tensor(2), 'volume': 6744.0, 'surface_area': 8607.8, 'L': 32.14, 'W': 41.957, 'H': 45.99, 'S': 2174.0}
-idx = 007, x = 46.59, y = 44.71, Rotated = True , {'type': 2.0, 'O': tensor(1), 'volume': 37635.0, 'surface_area': 17532.0, 'L': 88.349, 'W': 82.716, 'H': 76.41, 'S': 14668.0}
-idx = 008, x = 134.94, y = 63.32, Rotated = True , {'type': 6.0, 'O': tensor(1), 'volume': 6310.0, 'surface_area': 9792.0, 'L': 44.71, 'W': 81.166, 'H': 60.57, 'S': 3726.0}
-idx = 009, x = 221.89, y = 39.56, Rotated = False, {'type': 3.0, 'O': tensor(2), 'volume': 1029.0, 'surface_area': 1017.0, 'L': 31.82, 'W': 25.906, 'H': 26.88, 'S': 376.0}
-idx = 010, x = 0.00, y = 144.49, Rotated = True , {'type': 4.0, 'O': tensor(2), 'volume': 105909.0, 'surface_area': 45458.3, 'L': 149.045, 'W': 103.199, 'H': 155.67, 'S': 34743.0}
-idx = 011, x = 149.04, y = 144.49, Rotated = True , {'type': 4.0, 'O': tensor(3), 'volume': 105909.0, 'surface_area': 45458.3, 'L': 79.77, 'W': 46.588, 'H': 168.99, 'S': 44612.0}
-occupied_ratio: 73.54%
-rest_area: 16274.092101000002
+idx = 000, x = 0.00, y = 0.00, Rotated = True , {'type': 5.0, 'O': 4, 'volume': 28588.1, 'surface_area': 20398.8, 'L': 83.164, 'W': 84.128, 'H': 71.07, 'S': 12042.0}
+idx = 001, x = 0.00, y = 84.13, Rotated = False, {'type': 2.0, 'O': 1, 'volume': 37635.0, 'surface_area': 17532.0, 'L': 88.349, 'W': 82.716, 'H': 76.41, 'S': 14668.0}
+idx = 002, x = 82.72, y = 84.13, Rotated = False, {'type': 4.0, 'O': 2, 'volume': 105909.0, 'surface_area': 45458.3, 'L': 149.045, 'W': 103.199, 'H': 155.67, 'S': 34743.0}
+idx = 003, x = 185.91, y = 0.00, Rotated = True , {'type': 6.0, 'O': 0, 'volume': 6310.0, 'surface_area': 9792.0, 'L': 26.55, 'W': 89.7, 'H': 11.52, 'S': 3908.0}
+idx = 004, x = 0.00, y = 172.48, Rotated = True , {'type': 4.0, 'O': 3, 'volume': 105909.0, 'surface_area': 45458.3, 'L': 79.77, 'W': 46.588, 'H': 168.99, 'S': 44612.0}
+idx = 005, x = 83.16, y = 0.00, Rotated = True , {'type': 5.0, 'O': 4, 'volume': 28588.1, 'surface_area': 20398.8, 'L': 83.164, 'W': 84.128, 'H': 71.07, 'S': 12042.0}
+idx = 006, x = 0.00, y = 219.06, Rotated = True , {'type': 3.0, 'O': 3, 'volume': 1029.0, 'surface_area': 1017.0, 'L': 23.676000000000002, 'W': 23.762999999999998, 'H': 28.29, 'S': 0.0}
+occupied_ratio: 70.47%
+rest_area: 18161.514629000005
 slice_number: 5634
-total_surface_area: 195958.7
-total_part_volume: 385152.0
-total_support_volume: 153425.0
-Time: 122549.2446896077
-Energy: 853703627.5421112
+total_surface_area: 160055.2
+total_part_volume: 313968.19999999995
+total_support_volume: 122015.0
+Time: 112470.49534154328
+Energy: 724819873.9573543
+==============================
+		Batch No. 2
+==============================
+idx = 000, x = 0.00, y = 0.00, Rotated = True , {'type': 2.0, 'O': 1, 'volume': 37635.0, 'surface_area': 17532.0, 'L': 88.349, 'W': 82.716, 'H': 76.41, 'S': 14668.0}
+idx = 001, x = 88.35, y = 0.00, Rotated = True , {'type': 3.0, 'O': 0, 'volume': 1029.0, 'surface_area': 1017.0, 'L': 38.298, 'W': 23.762999999999998, 'H': 13.77, 'S': 515.0}
+idx = 002, x = 126.65, y = 0.00, Rotated = True , {'type': 6.0, 'O': 3, 'volume': 6310.0, 'surface_area': 9792.0, 'L': 26.55, 'W': 21.5, 'H': 79.71, 'S': 2425.0}
+idx = 003, x = 153.20, y = 0.00, Rotated = True , {'type': 5.0, 'O': 2, 'volume': 28588.1, 'surface_area': 20398.8, 'L': 86.745, 'W': 70.922, 'H': 76.74, 'S': 25217.0}
+idx = 004, x = 88.35, y = 23.76, Rotated = True , {'type': 6.0, 'O': 4, 'volume': 6310.0, 'surface_area': 9792.0, 'L': 39.561, 'W': 83.178, 'H': 57.36, 'S': 3737.0}
+occupied_ratio: 29.64%
+rest_area: 43272.489994
+slice_number: 2657
+total_surface_area: 58531.8
+total_part_volume: 79872.1
+total_support_volume: 46562.0
+Time: 49912.04960387152
+Energy: 258451852.2852016

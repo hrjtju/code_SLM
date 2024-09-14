@@ -1,0 +1,68 @@
+
+	 ec_30-7.json 
+
+Solution Time: 335936.9809168609
+Solution Energy: 2198304890.180356
+==============================
+		Batch No. 0
+==============================
+idx = 000, x = 0.00, y = 0.00, Rotated = True , {'type': 6.0, 'O': 6, 'volume': 6310.0, 'surface_area': 9792.0, 'L': 36.363, 'W': 72.57300000000001, 'H': 65.427, 'S': 3267.0}
+idx = 001, x = 0.00, y = 72.57, Rotated = True , {'type': 5.0, 'O': 4, 'volume': 28588.1, 'surface_area': 20398.8, 'L': 83.164, 'W': 84.128, 'H': 71.07, 'S': 12042.0}
+idx = 002, x = 83.16, y = 0.00, Rotated = True , {'type': 4.0, 'O': 2, 'volume': 105909.0, 'surface_area': 45458.3, 'L': 149.045, 'W': 103.199, 'H': 155.67, 'S': 34743.0}
+idx = 003, x = 36.36, y = 0.00, Rotated = True , {'type': 3.0, 'O': 4, 'volume': 1029.0, 'surface_area': 1017.0, 'L': 36.711, 'W': 24.9, 'H': 22.41, 'S': 536.0}
+idx = 004, x = 0.00, y = 156.70, Rotated = True , {'type': 5.0, 'O': 5, 'volume': 28588.1, 'surface_area': 20398.8, 'L': 82.454, 'W': 83.732, 'H': 76.903, 'S': 25145.0}
+idx = 005, x = 36.36, y = 24.90, Rotated = True , {'type': 6.0, 'O': 5, 'volume': 6310.0, 'surface_area': 9792.0, 'L': 40.783, 'W': 26.166, 'H': 81.226, 'S': 2439.0}
+idx = 006, x = 82.45, y = 156.70, Rotated = True , {'type': 3.0, 'O': 3, 'volume': 1029.0, 'surface_area': 1017.0, 'L': 23.676000000000002, 'W': 23.762999999999998, 'H': 28.29, 'S': 0.0}
+idx = 007, x = 83.16, y = 103.20, Rotated = True , {'type': 3.0, 'O': 3, 'volume': 1029.0, 'surface_area': 1017.0, 'L': 23.676000000000002, 'W': 23.762999999999998, 'H': 28.29, 'S': 0.0}
+idx = 008, x = 82.45, y = 180.46, Rotated = False, {'type': 1.0, 'O': 6, 'volume': 6744.0, 'surface_area': 8607.8, 'L': 50.375, 'W': 37.742000000000004, 'H': 40.047, 'S': 2545.0}
+idx = 009, x = 120.20, y = 103.20, Rotated = True , {'type': 5.0, 'O': 6, 'volume': 28588.1, 'surface_area': 20398.8, 'L': 84.017, 'W': 82.471, 'H': 76.74, 'S': 25145.0}
+idx = 010, x = 120.20, y = 185.67, Rotated = True , {'type': 4.0, 'O': 3, 'volume': 105909.0, 'surface_area': 45458.3, 'L': 79.77, 'W': 46.588, 'H': 168.99, 'S': 44612.0}
+occupied_ratio: 77.35%
+rest_area: 13930.272255000003
+slice_number: 5634
+total_surface_area: 183355.8
+total_part_volume: 320033.30000000005
+total_support_volume: 150474.0
+Time: 116640.80101329417
+Energy: 777658632.1188141
+==============================
+		Batch No. 1
+==============================
+idx = 000, x = 0.00, y = 0.00, Rotated = True , {'type': 2.0, 'O': 0, 'volume': 37635.0, 'surface_area': 17532.0, 'L': 83.0, 'W': 74.0, 'H': 51.93, 'S': 26353.0}
+idx = 001, x = 83.00, y = 0.00, Rotated = True , {'type': 1.0, 'O': 5, 'volume': 6744.0, 'surface_area': 8607.8, 'L': 50.375, 'W': 34.717, 'H': 39.98, 'S': 2162.0}
+idx = 002, x = 133.38, y = 0.00, Rotated = True , {'type': 2.0, 'O': 6, 'volume': 37635.0, 'surface_area': 17532.0, 'L': 83.174, 'W': 72.49199999999999, 'H': 78.143, 'S': 2025.0}
+idx = 003, x = 216.55, y = 0.00, Rotated = False, {'type': 6.0, 'O': 5, 'volume': 6310.0, 'surface_area': 9792.0, 'L': 40.783, 'W': 26.166, 'H': 81.226, 'S': 2439.0}
+idx = 004, x = 83.00, y = 34.72, Rotated = True , {'type': 1.0, 'O': 1, 'volume': 6744.0, 'surface_area': 8607.8, 'L': 48.839, 'W': 34.539, 'H': 41.67, 'S': 2596.0}
+idx = 005, x = 83.00, y = 69.26, Rotated = True , {'type': 6.0, 'O': 1, 'volume': 6310.0, 'surface_area': 9792.0, 'L': 44.71, 'W': 81.166, 'H': 60.57, 'S': 3726.0}
+idx = 006, x = 0.00, y = 74.00, Rotated = True , {'type': 2.0, 'O': 0, 'volume': 37635.0, 'surface_area': 17532.0, 'L': 83.0, 'W': 74.0, 'H': 51.93, 'S': 26353.0}
+idx = 007, x = 0.00, y = 150.42, Rotated = False, {'type': 5.0, 'O': 2, 'volume': 28588.1, 'surface_area': 20398.8, 'L': 86.745, 'W': 70.922, 'H': 76.74, 'S': 25217.0}
+idx = 008, x = 70.92, y = 150.42, Rotated = True , {'type': 5.0, 'O': 4, 'volume': 28588.1, 'surface_area': 20398.8, 'L': 83.164, 'W': 84.128, 'H': 71.07, 'S': 12042.0}
+idx = 009, x = 216.55, y = 40.78, Rotated = True , {'type': 3.0, 'O': 6, 'volume': 1029.0, 'surface_area': 1017.0, 'L': 29.768, 'W': 31.95, 'H': 25.144, 'S': 138.548}
+idx = 010, x = 127.71, y = 72.73, Rotated = True , {'type': 6.0, 'O': 6, 'volume': 6310.0, 'surface_area': 9792.0, 'L': 36.363, 'W': 72.57300000000001, 'H': 65.427, 'S': 3267.0}
+idx = 011, x = 164.07, y = 72.49, Rotated = False, {'type': 3.0, 'O': 6, 'volume': 1029.0, 'surface_area': 1017.0, 'L': 29.768, 'W': 31.95, 'H': 25.144, 'S': 138.548}
+idx = 012, x = 164.07, y = 102.26, Rotated = True , {'type': 2.0, 'O': 6, 'volume': 37635.0, 'surface_area': 17532.0, 'L': 83.174, 'W': 72.49199999999999, 'H': 78.143, 'S': 2025.0}
+idx = 013, x = 154.09, y = 174.75, Rotated = True , {'type': 4.0, 'O': 3, 'volume': 105909.0, 'surface_area': 45458.3, 'L': 79.77, 'W': 46.588, 'H': 168.99, 'S': 44612.0}
+occupied_ratio: 87.61%
+rest_area: 7623.300008999991
+slice_number: 5634
+total_surface_area: 205009.5
+total_part_volume: 348101.2
+total_support_volume: 153094.096
+Time: 120053.03393031118
+Energy: 820742301.6908884
+==============================
+		Batch No. 2
+==============================
+idx = 000, x = 0.00, y = 0.00, Rotated = True , {'type': 4.0, 'O': 6, 'volume': 105909.0, 'surface_area': 45458.3, 'L': 151.1, 'W': 100.551, 'H': 157.215, 'S': 20212.0}
+idx = 001, x = 151.10, y = 0.00, Rotated = True , {'type': 1.0, 'O': 0, 'volume': 6744.0, 'surface_area': 8607.8, 'L': 67.539, 'W': 34.617999999999995, 'H': 18.0, 'S': 1724.0}
+idx = 002, x = 0.00, y = 100.55, Rotated = True , {'type': 4.0, 'O': 2, 'volume': 105909.0, 'surface_area': 45458.3, 'L': 149.045, 'W': 103.199, 'H': 155.67, 'S': 34743.0}
+idx = 003, x = 151.10, y = 34.62, Rotated = True , {'type': 2.0, 'O': 0, 'volume': 37635.0, 'surface_area': 17532.0, 'L': 83.0, 'W': 74.0, 'H': 51.93, 'S': 26353.0}
+idx = 004, x = 0.00, y = 203.75, Rotated = True , {'type': 1.0, 'O': 1, 'volume': 6744.0, 'surface_area': 8607.8, 'L': 48.839, 'W': 34.539, 'H': 41.67, 'S': 2596.0}
+occupied_ratio: 66.24%
+rest_area: 20762.533622000003
+slice_number: 5241
+total_surface_area: 125664.20000000001
+total_part_volume: 262941.0
+total_support_volume: 85628.0
+Time: 99243.14597325557
+Energy: 599903956.3706537

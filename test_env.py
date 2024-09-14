@@ -110,7 +110,7 @@ done = False
 episode = 0
 
 # For debug mode only
-for _ in range(1000):
+for _ in tqdm.tqdm(range(3000)):
     if done == True:
         env.solution.show(out_dir=f"./solution_test/test_episode_{episode}_{env.load_path.split('.')[0]}")
         episode += 1
