@@ -208,7 +208,7 @@ if __name__ == "__main__":
     num_episodes = 10000
     hidden_dim = 128
     gamma = 1.00
-    epsilon = 0.01
+    epsilon = 0.01 # 0.05
     target_update = 10
     buffer_size = 50000
     minimal_size = 600

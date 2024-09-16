@@ -14,8 +14,8 @@
         "power_subsystems": {
             "basic_subsystem": 569.7,
             "platform_heater": 1122.3,
-            "water_cooling_unit": 713.3,
-            "water_circulation_unit": 1739.4,
+            "water_circulation_unit": 713.3,
+            "water_cooling_unit": 1739.4,
             "laser_scanning_border": 1770.92,
             "laser_filling_contour": 1770.92,
             "laser_volume_hatching": 2022.92,
@@ -53,7 +53,7 @@
                     0.4826,
                     0.0
                 ],
-                "water_cooling_unit": [
+                "water_circulation_unit": [
                     1.0,
                     1.0,
                     1.0,
@@ -62,7 +62,7 @@
                     1.0,
                     1.0
                 ],
-                "water_circulation_unit": [
+                "water_cooling_unit": [
                     0.168,
                     0.353,
                     0.353,

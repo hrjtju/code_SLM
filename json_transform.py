@@ -68,8 +68,8 @@ for file_name in tqdm(os.listdir(source_dir)):
         "power_subsystems": {
                 "basic_subsystem": machine_ls[1][0],
                 "platform_heater": machine_ls[1][1],
-                "water_cooling_unit": machine_ls[1][2],
-                "water_circulation_unit": machine_ls[1][3],
+                "water_circulation_unit": machine_ls[1][2],
+                "water_cooling_unit": machine_ls[1][3],
                 "laser_scanning_border": machine_ls[1][4],
                 "laser_filling_contour": machine_ls[1][5],
                 "laser_volume_hatching": machine_ls[1][6],
@@ -83,8 +83,8 @@ for file_name in tqdm(os.listdir(source_dir)):
             "rows": {
                 "basic_subsystem": machine_ls[2], 
                 "platform_heater": machine_ls[3], 
-                "water_cooling_unit": machine_ls[4], 
-                "water_circulation_unit": machine_ls[5], 
+                "water_circulation_unit": machine_ls[4], 
+                "water_cooling_unit": machine_ls[5], 
                 "laser_scanning_border": machine_ls[6], 
                 "laser_filling_contour": machine_ls[7], 
                 "laser_volume_hatching": machine_ls[8], 
@@ -107,6 +107,7 @@ for file_name in tqdm(os.listdir(source_dir)):
         "laser_speed_volume": process_ls[7],
         "laser_speed_support": process_ls[8], 
         "layer_thickness": process_ls[9],
+        "recoater_time_single": 11,
         "heat_time": process_ls[10],
         "cool_time": process_ls[11]
     }

@@ -109,8 +109,8 @@ env = SingleSLMEnv(in_path="./instances_json", device="cpu")
 done = False
 episode = 0
 
-# For debug mode only
-for _ in tqdm.tqdm(range(3000)):
+# Fetching Outputs
+for _ in tqdm.tqdm(range(1000)):
     if done == True:
         env.solution.show(out_dir=f"./solution_test/test_episode_{episode}_{env.load_path.split('.')[0]}")
         episode += 1
@@ -120,4 +120,17 @@ for _ in tqdm.tqdm(range(3000)):
         action=[torch.rand((20)), torch.rand((7))]
         )
     done = terminated or truncated
+    
+
+# For debug mode only
+# env = SingleSLMEnv(in_path="./instances_json", device="cpu")
+# done = False
+
+# # For debug mode only
+# while not done:
+    
+#     *_, terminated, truncated, _ = env.step(
+#         action=[torch.rand((20)), torch.rand((7))]
+#         )
+#     done = terminated or truncated
     

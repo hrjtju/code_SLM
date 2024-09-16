@@ -262,7 +262,7 @@ class Solution:
         """
         Calculate the power needed for the solution UNTIL NOW
         """
-        return 0 if self.empty() else sum(map(lambda x:calculate_batch_energy(x)["EPC"], self.batches))
+        return 0 if self.empty() else sum(map(lambda x:calculate_batch_energy(x)["EPC"], self.batches)) / 1e6
     
     def show(self, out_dir: str = f"./solution/") -> None:
         """
@@ -310,7 +310,6 @@ def calculate_batch_time(
     
     heater_time = delta_t_heater
     
-    #! Check if the term "layer_thickness" refer to "layer_thickness"
     scanning_border_time = b.get_total_surface_area() / (process.num_laser \
         * process.laser_speed_border * process.layer_thickness)
         
@@ -374,8 +373,8 @@ def calculate_batch_energy(
     P = np.array([
         [machine.power_subsystems["basic_subsystem"]], 
         [machine.power_subsystems["platform_heater"]], 
-        [machine.power_subsystems["water_cooling_unit"]], 
         [machine.power_subsystems["water_circulation_unit"]], 
+        [machine.power_subsystems["water_cooling_unit"]], 
         [real_power_scanning_border],
         [real_power_scanning_fill_contour],
         [real_power_scanning_volume_hatching],
