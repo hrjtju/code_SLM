@@ -1,7 +1,7 @@
 """
 Ruijie He
 
-Reference: https://hrl.boyuai.com/chapter/2/dqn%E7%AE%97%E6%B3%95
+Reference: https://hrl.boyuai.com/chapter/2/dqn%E6%94%B9%E8%BF%9B%E7%AE%97%E6%B3%95
 
 """
 
@@ -47,7 +47,6 @@ class ReplayBuffer:
         transitions = random.sample(self.buffer, batch_size)
         state, action, reward, next_state, done = zip(*transitions)
         
-        # TODO: modify the following line
         return repack(state), repack(action), reward, repack(next_state), done
 
     def size(self):
@@ -131,7 +130,7 @@ class QNet(nn.Module):
         
         return part_dist, orientation_dist
         
-class DQN:
+class DoubleDQN:
     def __init__(self, 
                  lr: float, 
                  gamma: float, 
@@ -186,7 +185,11 @@ class DQN:
         q_values = torch.concat(self.q_net(states), -1)\
             .gather(1, torch.concat(list(map(lambda x: torch.argmax(x, -1), actions)), -1))\
                 .sum(-1)
-        max_next_q = sum(map(lambda x: x.max(1)[0], self.target_q_net(next_states))).reshape(-1)
+        
+        # TODO: Check Correctness
+        max_action = self.q_net(next_states)
+        max_next_q = sum(map(lambda x: x[0].gather(1, x[1].max(1)[1].view(-1,1)), 
+                             zip(self.target_q_net(next_states), max_action))).reshape(-1)
         q_targets = rewards + self.gamma * max_next_q * (1 - dones)
         
         dqn_loss = torch.mean(F.mse_loss(q_values, q_targets))
@@ -202,27 +205,27 @@ class DQN:
 
 
 if __name__ == "__main__":
-    now_str = str(datetime.datetime.now()).split('.')[0].replace(':', '_').replace(' ', '_')
-    
-    os.mkdir(f'./tf-logs/{now_str}')
-    writer = SummaryWriter(f'./tf-logs/{now_str}')
     
     warnings.filterwarnings("ignore")
     
-    lr = 2e-6
+    lr = 2e-5
     num_episodes = 10000
     hidden_dim = 128
     gamma = 1.00
     epsilon = 0.01 # 0.05
-    target_update = 10
-    buffer_size = 50000
+    target_update = 5
+    buffer_size = 20000
     minimal_size = 600
-    batch_size = 16
+    batch_size = 32
     device = torch.device("cuda")
     
     replay_buffer = ReplayBuffer(buffer_size)
     
-    agent = DQN(lr, gamma, epsilon, target_update, device)
+    agent = DoubleDQN(lr, gamma, epsilon, target_update, device)
+    
+    now_str = str(datetime.datetime.now()).split('.')[0].replace(':', '_').replace(' ', '_')
+    os.mkdir(f'./tf-logs/{agent.__class__.__name__}_{now_str}')
+    writer = SummaryWriter(f'./tf-logs/{agent.__class__.__name__}_{now_str}')
     
     return_list = []
     instances_dict = {}
