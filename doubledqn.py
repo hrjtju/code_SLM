@@ -73,16 +73,22 @@ class QNet(nn.Module):
             nn.Conv2d(in_channels=8, out_channels=16, kernel_size=3, padding=2),
             nn.MaxPool2d(2),
             nn.ReLU(inplace=True),
+            nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, padding=2),
+            nn.ReLU(inplace=True),
             nn.Flatten()
         )
         self.lwh_nn = nn.Sequential(
             nn.Linear(in_features=3, out_features=32),
             nn.ReLU(inplace=True),
             nn.Linear(in_features=32, out_features=32),
+            nn.ReLU(inplace=True),
+            nn.Linear(in_features=32, out_features=32),
             nn.ReLU(inplace=True)
         )
         self.part_nn = nn.Sequential(
             nn.Linear(in_features=self.max_part*(3 + 4 * self.max_ori), out_features=128),
+            nn.ReLU(inplace=True),
+            nn.Linear(in_features=128, out_features=128),
             nn.ReLU(inplace=True),
             nn.Linear(in_features=128, out_features=128),
             nn.ReLU(inplace=True)
@@ -95,16 +101,22 @@ class QNet(nn.Module):
             nn.Linear(in_features=160+view_feature_len, out_features=128),
             nn.ReLU(inplace=True),
             nn.Linear(in_features=128, out_features=128),
+            nn.ReLU(inplace=True),
+            nn.Linear(in_features=128, out_features=128),
             nn.ReLU(inplace=True)
         )
         
         self.policy_part = nn.Sequential(
             nn.Linear(in_features=128, out_features=128),
             nn.ReLU(inplace=True),
+            nn.Linear(in_features=128, out_features=128),
+            nn.ReLU(inplace=True),
             nn.Linear(in_features=128, out_features=self.max_part),
             nn.Sigmoid()
         )
         self.policy_orientation = nn.Sequential(
+            nn.Linear(in_features=128, out_features=128),
+            nn.ReLU(inplace=True),
             nn.Linear(in_features=128, out_features=128),
             nn.ReLU(inplace=True),
             nn.Linear(in_features=128, out_features=self.max_ori),
@@ -276,7 +288,7 @@ if __name__ == "__main__":
                 instances_dict[instance] = 1 if instance not in instances_dict else instances_dict[instance]+1
                 
                 writer.add_scalar("Avg Episode Return", moving_avg_return, episode_id)
-                writer.add_scalar(f"{instance}", scalar_value=episode_return, global_step=instances_dict.get(instance))
+                # writer.add_scalar(f"{instance}", scalar_value=episode_return, global_step=instances_dict.get(instance))
                 
                 pbar.update(1)
                 # asd
