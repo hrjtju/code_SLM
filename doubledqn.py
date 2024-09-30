@@ -73,22 +73,16 @@ class QNet(nn.Module):
             nn.Conv2d(in_channels=8, out_channels=16, kernel_size=3, padding=2),
             nn.MaxPool2d(2),
             nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, padding=2),
-            nn.ReLU(inplace=True),
             nn.Flatten()
         )
         self.lwh_nn = nn.Sequential(
             nn.Linear(in_features=3, out_features=32),
             nn.ReLU(inplace=True),
             nn.Linear(in_features=32, out_features=32),
-            nn.ReLU(inplace=True),
-            nn.Linear(in_features=32, out_features=32),
             nn.ReLU(inplace=True)
         )
         self.part_nn = nn.Sequential(
             nn.Linear(in_features=self.max_part*(3 + 4 * self.max_ori), out_features=128),
-            nn.ReLU(inplace=True),
-            nn.Linear(in_features=128, out_features=128),
             nn.ReLU(inplace=True),
             nn.Linear(in_features=128, out_features=128),
             nn.ReLU(inplace=True)
@@ -101,22 +95,16 @@ class QNet(nn.Module):
             nn.Linear(in_features=160+view_feature_len, out_features=128),
             nn.ReLU(inplace=True),
             nn.Linear(in_features=128, out_features=128),
-            nn.ReLU(inplace=True),
-            nn.Linear(in_features=128, out_features=128),
             nn.ReLU(inplace=True)
         )
         
         self.policy_part = nn.Sequential(
             nn.Linear(in_features=128, out_features=128),
             nn.ReLU(inplace=True),
-            nn.Linear(in_features=128, out_features=128),
-            nn.ReLU(inplace=True),
             nn.Linear(in_features=128, out_features=self.max_part),
             nn.Sigmoid()
         )
         self.policy_orientation = nn.Sequential(
-            nn.Linear(in_features=128, out_features=128),
-            nn.ReLU(inplace=True),
             nn.Linear(in_features=128, out_features=128),
             nn.ReLU(inplace=True),
             nn.Linear(in_features=128, out_features=self.max_ori),
@@ -228,7 +216,7 @@ if __name__ == "__main__":
     target_update = 5
     buffer_size = 20000
     minimal_size = 600
-    batch_size = 32
+    batch_size = 8
     device = torch.device("cuda")
     
     replay_buffer = ReplayBuffer(buffer_size)
@@ -242,7 +230,7 @@ if __name__ == "__main__":
     return_list = []
     instances_dict = {}
     
-    env = SingleSLMEnv(in_path="./instances_json/", device=device)
+    env = SingleSLMEnv(in_path="./instances_generated_json/", device=device)
     env_name = env.name
     
     for i in range(10):
