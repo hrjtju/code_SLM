@@ -284,7 +284,46 @@ class Solution:
 
     def empty(self) -> bool:
         return (len(self.batches) < 1) or all(map(lambda x:x.empty(), self.batches))
+
+
+# TODO: Complete 1D parallel version of solution
+class SolutionParallel1D():
+    def __init__(self, instance_name: str):
+        ...
     
+    def slice_number(self, idx: None|int):
+        ...
+    
+    def get_current_view(self, idx: None|int):
+        ...
+    
+    def get_rest_area(self, idx: None|int):
+        ...
+    
+    def get_occupied_ratio(self, idx: None|int) -> float:
+        ...
+    
+    def get_total_surface_area(self, idx: None|int) -> float:
+        ...
+    
+    def get_total_part_volume(self, idx: None|int) -> float:
+        ...
+    
+    def get_total_support_volume(self, idx: None|int) -> float:
+        ...
+    
+    def add_part(self, part: Part, orientation: int, idx: None|int) -> Tuple[Tensor, float]:
+        ...
+    
+    def empty(self) -> bool:
+        ...
+    
+    def show_parts(self, fp) -> None:
+        ...
+        
+    def show_view(self, dir: str) -> None:
+        ...
+   
 
 CONCENTRATION_OXYGEN_INITIAL = 21
 CONCENTRATION_OXYGEN_END = 0.1

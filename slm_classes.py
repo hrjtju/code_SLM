@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 import numpy as np
 import pandas as pd
 import json
@@ -83,6 +83,9 @@ class Machine(ItemFromJson):
             columns=columns,
             orient="index"
         )
+    
+    def get_lwh(self) -> Tuple[float, float, float]:
+        return self.build_l, self.build_w, self.build_h
     
     # def get_power_coeff_ij(row, col) -> float:
     #     ...

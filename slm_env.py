@@ -1,3 +1,4 @@
+from math import trunc
 import os
 import random
 from typing import Any, Dict, Tuple, List, Literal
@@ -6,8 +7,8 @@ from torch import Tensor as Tensor
 import joyrl
 from gymnasium import Env, spaces
 
-from slm_classes import load_json_to_class
-from batch_solution import Batch, Solution
+from slm_classes import MetaData, load_json_to_class
+from batch_solution import Solution, SolutionParallel1D
 
 #! Add Unit Test
 
@@ -148,7 +149,7 @@ class SingleSLMEnv(Env):
                           view_shape=self.view_shape, 
                           seed=random.random()
                           )
-        elif self.phase == "Text":
+        elif self.phase == "Test":
             exit(0)
         else:
             raise NotImplementedError
@@ -278,6 +279,133 @@ class SingleSLMEnv(Env):
         reward = self.last_criterion - criterion
         self.last_criterion = criterion
         
+        return self.curr_state, reward, terminated, truncated, info
+
+class SingleSLMEnvParallel1D(SingleSLMEnv):
+    """
+    State: Concatenation of three flattened tensors
+    
+    Action: Concatenation of three tensors
+        [part_distribution, orientation_distribution, batch_distribution]
+    """
+    def __init__(self,
+                 in_path: str,
+                 device: torch.device,
+                 phase: Literal["Train", "Test"] = "train",
+                 max_part_type: int = 20,
+                 max_orientation_num: int = 7,
+                 max_batch_num: int = 20,
+                 seed: float = 0,
+                 **kwargs
+                 ):
+        
+        random.seed(seed)
+        self.device = device
+        self.phase = phase
+        self.in_path = in_path
+        self.max_part_type = max_part_type
+        self.max_orientation_num = max_orientation_num
+        self.max_batch_num = max_batch_num
+        
+        # select slm instance and load it
+        self.slm_metadata = self.get_metadata()
+        
+        # pass the max params to self.slm_metadata for generating state matrix and mask matrix
+        self.slm_metadata.max_part_type = max_part_type
+        self.slm_metadata.max_orientation_num = max_orientation_num
+        
+        self.lwh = self.slm_metadata.machine.get_lwh()
+        
+        self.solution = SolutionParallel1D(instance_name=self.load_path)
+        
+        # total length of space:
+        # num_batch * num_param_batch + 3 + num_init_states
+        self.curr_state = torch.stack(
+            tensors=[self.solution.get_current_view().reshape(-1), 
+                     torch.tensor(self.lwh),
+                     self.slm_metadata.init_state().reshape(-1)],
+            dim=0
+        )
+        
+        self.observation_space = spaces.Box(low=0, high=float("inf"), 
+                                            shape=self.curr_state.shape)
+    
+    def get_metadata(self) -> MetaData:
+        if self.phase == "Train":
+            self.load_path = random.choice(os.listdir(self.in_path))
+            self.slm_metadata = load_json_to_class(os.path.join(self.in_path, self.load_path))
+            
+        # if the phase is Test, choose the file indicated by the path.
+        elif self.phase == "Test":
+            # load the specified in_path
+            self.slm_metadata = load_json_to_class(self.in_path)
+            
+        # Raise Error if self.phase is not among the two strings above.
+        else:
+            raise NotImplementedError
+        
+        return self.slm_metadata
+    
+    def reset(self):
+        if self.phase == "Train":
+            self.__init__(in_path=self.in_path,
+                          device=self.device,
+                          phase=self.phase,
+                          max_batch_num=self.max_batch_num,
+                          max_orientation_num=self.max_orientation_num,
+                          max_part_type=self.max_part_type,
+                          seed=random.random())
+        # TODO: Add printing options of the assignment results
+        elif self.phase == "Test":
+            exit(0)
+        else:
+            raise NotImplementedError
+        return self.curr_state, self.load_path
+    
+    def update_state(self, view: Tensor, part_id: int) -> None:
+        ...
+    
+    def done(self) -> None:
+        ...
+    
+    def slice_action(self, action: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+        return action[:self.max_part_type],\
+            action[self.max_part_type: self.max_part_type+self.max_orientation_num],\
+            action[self.max_part_type+self.max_orientation_num:]
+    
+    # TODO: Complete this function. Return masks independently
+    def get_distribution_masks(self) -> List[Tensor]:
+        part_mask = None
+        ori_mask = None
+        batch_mask = None
+        return part_mask, ori_mask, batch_mask
+    
+    def step(
+        self, 
+        action: Tensor
+        ) -> Tuple[Tensor, float, bool, bool, str]:
+        """
+        Action: Concatenation of three tensors
+            [part_distribution, orientation_distribution, batch_distribution]
+        """
+        terminated, truncated = False, False
+        info, reward = None, 0        
+        
+        distributions = self.slice_action(action=action)
+        masks = self.get_distribution_masks()
+        
+        masked_normalized_distributions = map(lambda x:x[1]*torch.softmax(x[0]), 
+                                                   zip(distributions, masks))
+        part_id, ori_id, batch_id = list(map(lambda x:torch.argmax(x), masked_normalized_distributions))
+        
+        new_view, penalty = self.solution.add_part(part=part_id,
+                                                   orientation=ori_id,
+                                                   idx=batch_id)
+        
+        criterion = self.solution.calculate_energy()
+        reward = self.last_criterion - criterion - penalty
+        self.last_criterion = criterion
+
         return self.curr_state, reward, terminated, truncated, info
 
 if __name__ == "__main__":
