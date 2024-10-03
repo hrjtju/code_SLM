@@ -97,9 +97,9 @@ class SingleSLMEnv(Env):
         
         # observation of the current batch
         self.curr_state = (
-            self.solution.get_current_view().reshape(*self.view_process_shape),        # Current discretized view of the batch, Variable
+            self.solution.get_current_view().reshape(*self.view_process_shape), # Current discretized view of the batch, Variable
             torch.tensor([self.L, self.W, self.H]),  # Real size of the batch, Constant
-            self.slm_metadata.init_state().reshape(-1)               # Situation of all parts, Variable
+            self.slm_metadata.init_state().reshape(-1) # Situation of all parts, Variable
         )
         
         # Initial reference for comparing criterion numbers.
@@ -414,3 +414,6 @@ if __name__ == "__main__":
     slm_single_env = SingleSLMEnv(in_path="./instances_json/")
     joyrl.run(yaml_path=yaml_path, env=slm_single_env)
 
+
+class SingleSLMEnv1D(SingleSLMEnv):
+    ...

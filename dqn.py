@@ -6,6 +6,8 @@ Reference: https://hrl.boyuai.com/chapter/2/dqn%E7%AE%97%E6%B3%95
 """
 
 
+import datetime
+import os
 import random
 import collections
 from sympy import true
@@ -72,16 +74,22 @@ class QNet(nn.Module):
             nn.Conv2d(in_channels=8, out_channels=16, kernel_size=3, padding=2),
             nn.MaxPool2d(2),
             nn.ReLU(inplace=True),
+            nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, padding=2),
+            nn.ReLU(inplace=True),
             nn.Flatten()
         )
         self.lwh_nn = nn.Sequential(
             nn.Linear(in_features=3, out_features=32),
             nn.ReLU(inplace=True),
             nn.Linear(in_features=32, out_features=32),
+            nn.ReLU(inplace=True),
+            nn.Linear(in_features=32, out_features=32),
             nn.ReLU(inplace=True)
         )
         self.part_nn = nn.Sequential(
             nn.Linear(in_features=self.max_part*(3 + 4 * self.max_ori), out_features=128),
+            nn.ReLU(inplace=True),
+            nn.Linear(in_features=128, out_features=128),
             nn.ReLU(inplace=True),
             nn.Linear(in_features=128, out_features=128),
             nn.ReLU(inplace=True)
@@ -200,7 +208,10 @@ class DQN:
 
 
 if __name__ == "__main__":
-    writer = SummaryWriter('./tf-logs')
+    now_str = str(datetime.datetime.now()).split('.')[0].replace(':', '_').replace(' ', '_')
+    
+    os.mkdir(f'./tf-logs/{now_str}')
+    writer = SummaryWriter(f'./tf-logs/{now_str}')
     
     warnings.filterwarnings("ignore")
     

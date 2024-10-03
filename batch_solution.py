@@ -17,10 +17,10 @@ class Batch:
     A Batch contains:
         - A TRUE INSTANCE of 2d-bin (for bin-packing algorithm)
         - A discretized VIEW of the 2d-bin (for neural network)
-        - A container containing information of parts allocated to this batch,
-            - each item of which contains the original dict of the category(kind) 
-              the part belongs to with `build_param` equaling the value 
-              corresponding the orientation chosen
+        - A container containing information of parts allocated to this batch, 
+          each item of which contains the original dict of the category(kind) 
+          the part belongs to with `build_param` equaling the value corresponding 
+          the orientation chosen
     """
     def __init__(self, 
                  machine: Machine,
