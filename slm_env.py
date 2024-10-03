@@ -414,6 +414,3 @@ if __name__ == "__main__":
     slm_single_env = SingleSLMEnv(in_path="./instances_json/")
     joyrl.run(yaml_path=yaml_path, env=slm_single_env)
 
-
-class SingleSLMEnv1D(SingleSLMEnv):
-    ...
