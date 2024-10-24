@@ -164,7 +164,8 @@ class SingleSLMEnv(Env):
         
         # get the state matrix of parts at this timestamp
         temp_part_state = self.last_state[-1]
-        assert temp_part_state.reshape(self.max_part_type, -1)[part_id, 0] > 0, "Error, trying to allocate type of part which is already 0 parts."
+        assert temp_part_state.reshape(self.max_part_type, -1)[part_id, 0] > 0, \
+            "Error, trying to allocate type of part which is already 0 parts."
         
         # Decrement the number of type part_id by 1 (with assertion that it must greater than 0)
         temp_part_state.view(self.max_part_type, -1)[part_id, 0] -= 1
@@ -242,7 +243,8 @@ class SingleSLMEnv(Env):
                 rank_ptr += 1
                 
                 # If the orientation is not feasible, then break the loop
-                if (not self.slm_metadata.mask_matrix()[part_id, orientation_id].item()) or rank_ptr >= len(orientation_rank):
+                if (not self.slm_metadata.mask_matrix()[part_id, orientation_id].item()) \
+                        or rank_ptr >= len(orientation_rank):
                     break
                 
                 orientation_id = orientation_rank[rank_ptr]
