@@ -229,12 +229,180 @@
 
 对于每个零件的摆放方向，以类似方法定义$o_{\text{mask}}^{(i)} = [1, 1, \dots, 1, 0, \dots, 0] \in \mathbb{R}^{7}$，然后将所有的向量堆叠起来：$$O_{\text{mask}} = \left[ \begin{matrix}1 & \cdots & 1 & 0 & \cdots &  0\\1 & \cdots & 1 & 0 & \cdots &  0\\\vdots & \vdots & \vdots & \vdots & \vdots & \vdots\\1 & \cdots & 1 & 0 & \cdots &  0\end{matrix} \right] \in \mathbb{R}^{n_{\text{parts}} \times 7}$$由于矩阵$O_{\text{mask}}$的形状会随着算例中类别数量改变而改变，因此可不断填$0$至矩阵形状固定为$20 \times 7$: $$O_{\text{mask}} = \left[ \begin{matrix}1 & \cdots & 1 & 0 & \cdots &  0\\1 & \cdots & 1 & 0 & \cdots &  0\\\vdots & \vdots & \vdots & \vdots & \vdots & \vdots\\1 & \cdots & 1 & 0 & \cdots &  0 \\\vdots & \vdots & \vdots & \vdots & \vdots & \vdots\\ 0 & 0 & 0 & 0 & 0 & 0\end{matrix} \right] \in \mathbb{R}^{20 \times 7}$$
 
+> 修改时间：2025年1月11日22:05:06
+
 ### 3.1.2 规划可行解类
 #### 3.1.2.1 `Batch`
+
+**功能概述：**
+`Batch` 类主要用于管理和操作一批物品的相关信息，它结合了 2D 装箱算法的实际实例、用于神经网络的离散化视图以及已分配到该批物品的信息容器。它提供了各种方法来操作和获取有关这批物品的信息，包括空间信息、物品添加、视图生成、面积和体积计算等，同时还支持将信息输出到文件或显示为图像。
+
+**类属性：**
+- `L`：从 `Machine` 类实例中获取的*工作区域长度*，减去了零件距离工作台两侧边缘的最小距离（`machine.build_l - 2 * process.min_distance_part_platform`）。
+- `W`：从 `Machine` 类实例中获取的*工作区域宽度*，减去了零件距离工作台两侧边缘的最小距离（`machine.build_w - 2 * process.min_distance_part_platform`）。
+- `H`：从 `Machine` 类实例中获取的*工作区域高度*（`machine.build_h`）。
+- `machine`：存储 `Machine` 类的实例，方便访问其参数。
+- `process`：存储 `Process` 类的实例，方便访问其参数。
+- `view_shape`：用于重塑批次视图以进行神经网络处理的形状元组。
+- `bin_true`：使用 `newPacker` 创建的装箱算法实例，可能依赖于 `PackingMode.Online` 模式且允许旋转。
+- `bin_view`：最终应为固定大小的张量，初始化为 `None`。
+- `parts_info`：存储包含已指定方向的部件信息的字典列表。
+
+
+**方法：**
+- `__init__(self, machine: Machine, process: Process, view_shape: tuple) -> None`：
+    - **功能**：类的构造函数，初始化 `Batch` 类的实例。
+    - **参数**：
+        - `machine`：`Machine` 类的实例，用于获取机器的构建参数。
+        - `process`：`Process` 类的实例，可能涉及到一些处理过程的参数。
+        - `view_shape`：用于神经网络处理的视图形状元组。
+    - **实现细节**：
+        - 从 `machine` 实例获取 `L`、`W`、`H` 信息并进行边界处理。
+        - 存储 `machine` 和 `process` 实例。
+        - 初始化 `view_shape`。
+        - 创建 `bin_true` 装箱算法实例并添加相应的箱子信息。
+        - 初始化 `bin_view` 为 `None`，`parts_info` 为空列表。
+- `@property slice_number(self) -> float`：
+    - **功能**：计算构建的切片数，根据 `parts_info` 中部件的最大高度除以 `process` 的层厚度向上取整，若批次为空则返回 0。
+    - **实现细节**：使用 `max` 函数和 `lambda` 表达式找到 `parts_info` 中 `H` 最大的元素，然后将其除以 `process.layer_thickness` 并向上取整，若批次为空则直接返回 0。
+- `get_current_view(self, stretch: bool = True, show: bool = False) -> Tensor`：
+    - **功能**：返回批次的当前视图作为神经网络的输入之一，同时包含高度信息。
+    - **参数**：
+        - `stretch`：是否将视图拉伸到标准大小，默认为 `True`。
+        - `show`：是否为可视化添加边框，默认为 `False`。
+    - **实现细节**：
+        - 创建一个零张量 `grid`，其大小根据 `L` 和 `W` 向上取整。
+        - 遍历 `bin_true.rect_list()`，将部件的高度信息添加到 `grid` 中。
+        - 根据 `show` 参数添加额外的可视化边框。
+        - 根据 `stretch` 参数使用 `torch.nn.functional.interpolate` 进行双线性插值将视图拉伸到 `view_shape` 或保留原始形状。
+- `get_rest_area(self) -> float`：
+    - **功能**：计算批次的剩余面积。
+    - **实现细节**：计算总可用面积（`L * W`）并减去已被部件占用的面积（通过 `map` 和 `lambda` 表达式计算部件的 `L * W` 之和）。
+- `get_occupied_ratio(self) -> float`：
+    - **功能**：计算部件占用的面积在机器可用面积中的比例，结果范围在 0 到 1 之间。
+    - **实现细节**：若批次为空返回 0，否则用 1 减去剩余面积占比。
+- `get_total_surface_area(self) -> float`：
+    - **功能**：计算该批次中所有部件的总表面积。
+    - **实现细节**：使用 `map` 和 `lambda` 表达式将 `parts_info` 中每个部件的表面积相加。
+- `get_total_part_volume(self) -> float`：
+    - **功能**：计算该批次中所有部件的总体积。
+    - **实现细节**：使用 `map` 和 `lambda` 表达式将 `parts_info` 中每个部件的体积相加。
+- `get_total_support_volume(self) -> float`：
+    - **功能**：计算该批次中所有部件的总支撑体积。
+    - **实现细节**：使用 `map` 和 `lambda` 表达式将 `parts_info` 中每个部件的支撑体积相加。
+- `add_part(self, part: Part, orientation: int) -> Tuple[Tensor, bool]`：
+    - **功能**：将部件添加到批次中，根据添加结果返回相应的视图和布尔值表示是否添加成功。
+    - **参数**：
+        - `part`：要添加的部件。
+        - `orientation`：部件的方向。
+    - **实现细节**：
+        - 首先检查部件的投影面积是否小于批次的剩余面积，若不满足则返回 `None` 和 `False`。
+        - 尝试使用 `allocate_bin_packing_2d` 函数将部件添加到 `bin_true` 中。
+        - 若添加成功，更新 `parts_info` 列表并更新 `bin_view`，返回更新后的视图和 `True`，否则不更新并返回原视图和 `False`。
+- `empty(self) -> bool`：
+    - **功能**：检查批次是否为空。
+    - **实现细节**：通过检查 `parts_info` 列表的长度是否小于 1 来判断。
+- `show_parts(self, fp)`：
+    - **功能**：将 `parts_info` 打印到文件中，同时输出批次的各种信息，如占用比例、剩余面积、切片数等。
+    - **参数**：
+        - `fp`：文件对象。
+    - **实现细节**：
+        - 遍历 `parts_info` 和 `bin_true.rect_list()` 并打印部件信息。
+        - 打印批次的各种计算信息，如占用比例、剩余面积、切片数等，还包括计算得到的批次时间和能量信息。
+- `show_view(self, dir: str) -> None`：
+    - **功能**：将批次的视图以矩阵形式作为图像打印出来。
+    - **参数**：
+        - `dir`：保存图像的目录。
+    - **实现细节**：
+        - 获取未拉伸且带有显示边框的当前视图。
+        - 使用 `matplotlib` 绘制图像，设置 `dpi` 和 `figsize`，显示颜色条和网格，保存图像并尝试关闭图像，删除 `ax` 对象。
+
+**注意事项：**
+- 对于 `bin_true` 实例，使用的是 `newPacker` 算法，其 `PackingMode.Online` 模式和旋转功能可能会根据不同的场景有不同的效果，在实际使用中需要根据具体情况进行调整。
+- 在调用 `get_current_view` 方法时，根据 `stretch` 和 `show` 参数的不同设置，生成的视图会有所不同，要根据需求选择合适的设置。
+- 在添加部件时，`allocate_bin_packing_2d` 函数的行为会直接影响部件是否能成功添加到 `bin_true` 中，需要确保该函数的正确实现和理解其返回结果。
+- 在使用 `show_parts` 方法时，文件对象 `fp` 需要在调用该方法前正确创建和打开，以保证信息能正确输出。
+- `show_view` 方法使用 `matplotlib` 进行图像绘制，确保系统已正确安装和配置 `matplotlib` 库，并且在保存图像后正确关闭相关资源，以避免资源泄漏。
+
 #### 3.1.2.2 `Solution`
+
+**功能概述：**
+`Solution` 类用于管理多个 `Batch` 实例，提供了操作这些 `Batch` 的一系列方法，包括添加 `Batch`、添加部件、获取当前 `Batch` 视图、计算时间和能量，以及展示整个 `Solution` 的信息。
+
+**类属性：**
+- `instance_name`：存储实例的名称，默认为 `"None"`。
+- `view_shape`：存储视图形状的元组。
+- `batches`：存储 `Batch` 实例的列表，初始为空列表。
+
+**方法：**
+- `__init__(self, view_shape: Tuple[int, int], instance_name: str = "None") -> None`：
+    - **功能**：类的构造函数，初始化 `Solution` 类的实例。
+    - **参数**：
+        - `view_shape`：视图形状的元组。
+        - `instance_name`：实例名称，默认为 `"None"`。
+    - **实现细节**：
+        - 初始化 `instance_name` 和 `view_shape` 属性。
+        - 创建一个空的 `batches` 列表。
+- `add_batch(self, machine: Machine, process: Process) -> None`：
+    - **功能**：向 `Solution` 中添加一个空的 `Batch`。
+    - **参数**：
+        - `machine`：`Machine` 类的实例，用于创建 `Batch` 时传递给 `Batch` 的构造函数。
+        - `process`：`Process` 类的实例，用于创建 `Batch` 时传递给 `Batch` 的构造函数。
+    - **实现细节**：
+        - 调用 `Batch` 的构造函数，将 `machine`、`process` 和 `self.view_shape` 作为参数，创建一个新的 `Batch` 实例并添加到 `batches` 列表中。
+- `get_batch(self) -> Batch`：
+    - **功能**：获取当前的 `Batch`。
+    - **实现细节**：
+        - 首先使用 `assert` 语句确保 `batches` 列表不为空，若为空会引发异常。
+        - 返回 `batches` 列表中的最后一个 `Batch` 实例。
+- `get_current_view(self, stretch: bool = True, show: bool = False) -> Tensor`：
+    - **功能**：获取当前 `Batch` 的视图。
+    - **参数**：
+        - `stretch`：是否拉伸视图，默认为 `True`。
+        - `show`：是否显示视图，默认为 `False`。
+    - **实现细节**：
+        - 调用 `get_batch` 方法获取当前 `Batch`，然后调用 `Batch` 的 `get_current_view` 方法，将 `stretch` 和 `show` 参数传递给它。
+- `add_part(self, part: Part, orientation: int) -> Tuple[Tensor, bool]`：
+    - **功能**：尝试将部件添加到当前 `Batch` 中。
+    - **参数**：
+        - `part`：要添加的部件。
+        - `orientation`：部件的方向。
+    - **实现细节**：
+        - 调用 `get_batch` 方法获取当前 `Batch`，然后调用 `Batch` 的 `add_part` 方法将部件添加到其中，并返回相应的结果。
+- `calculate_time(self) -> float`：
+    - **功能**：计算直到现在该 `Solution` 所需的时间。
+    - **实现细节**：
+        - 若 `Solution` 为空（即 `batches` 列表为空或所有 `Batch` 都为空），返回 0。
+        - 否则，使用 `map` 和 `lambda` 表达式计算每个 `Batch` 的时间并求和，其中调用 `calculate_batch_time` 函数。
+- `calculate_energy(self) -> float`：
+    - **功能**：计算直到现在该 `Solution` 所需的能量。
+    - **实现细节**：
+        - 若 `Solution` 为空（即 `batches` 列表为空或所有 `Batch` 都为空），返回 0。
+        - 否则，使用 `map` 和 `lambda` 表达式计算每个 `Batch` 的能量，调用 `calculate_batch_energy` 函数，并将结果求和后除以 `1e6`。
+- `show(self, out_dir: str = f"./solution/") -> None`：
+    - **功能**：展示 `Solution` 中所有 `Batch` 的部件列表和视图信息。
+    - **参数**：
+        - `out_dir`：输出目录，默认为 `"./solution/"`。
+    - **实现细节**：
+        - 首先检查 `out_dir` 是否存在，若不存在则创建该目录。
+        - 打开 `contains.txt` 文件，打印实例名称、解决方案的时间和能量。
+        - 遍历 `batches` 列表，为每个 `Batch` 调用 `show_parts` 方法将部件信息打印到文件中，并调用 `show_view` 方法将视图保存为 `batch_<编号>.jpg` 图像。
+- `empty(self) -> bool`：
+    - **功能**：检查 `Solution` 是否为空。
+    - **实现细节**：
+        - 检查 `batches` 列表的长度是否小于 1 或者 `batches` 列表中的所有 `Batch` 实例是否都为空，使用 `all` 函数和 `lambda` 表达式进行判断。
+
+
+**注意事项：**
+- 在调用 `get_batch` 方法时，确保 `batches` 列表不为空，否则会引发 `AssertionError`，可以在调用之前使用 `empty` 方法进行检查。
+- `add_batch` 方法会添加一个新的 `Batch` 实例，需要注意 `Machine` 和 `Process` 实例的正确传递，它们会影响 `Batch` 的属性和行为。
+- `calculate_time` 和 `calculate_energy` 方法依赖于 `calculate_batch_time` 和 `calculate_batch_energy` 函数，确保这些函数已正确实现和调用。
+- `show` 方法会在指定目录下创建文件和目录，确保有相应的权限进行文件和目录操作，同时要注意存储的文件和图像的信息，避免信息丢失或覆盖。
+
 ### 3.1.4 能量函数和时间函数
 #### 3.1.4.1 `calculate_batch_time`
 #### 3.1.4.2 `calculate_batch_energy`
+
 ### 3.1.3 二维装箱算法
 ## 3.2 并行一维装箱模型
 ### 3.2.1 基本数据元素类
@@ -246,7 +414,141 @@
 #### 3.2.1.6 `MetaData`
 ### 3.2.2 规划可行解类
 #### 3.2.2.1 `Batch`
-#### 3.2.2.2 `Solution```
+
+**功能概述：**
+`Batch` 类主要用于管理和操作一批物品的相关信息，它结合了 1D 装箱算法的实际实例、用于神经网络的离散化视图以及已分配到该批物品的信息容器。它提供了各种方法来操作和获取有关这批物品的信息，包括占用信息、物品添加、视图生成、面积和体积计算等，同时还支持将信息输出到文件或显示为图像。
+
+**类属性：**
+- `L`：从 `Machine` 类实例中获取的*工作区域长度*，减去了零件距离工作台两侧边缘的最小距离（`machine.build_l - 2 * process.min_distance_part_platform`）。
+- `W`：从 `Machine` 类实例中获取的*工作区域宽度*，减去了零件距离工作台两侧边缘的最小距离（`machine.build_w - 2 * process.min_distance_part_platform`）。
+- `H`：从 `Machine` 类实例中获取的*工作区域高度*（`machine.build_h`）。
+- `machine`：存储 `Machine` 类的实例，方便访问其参数。
+- `process`：存储 `Process` 类的实例，方便访问其参数。
+- `view_shape`：被删除 #DIFF 
+- `bin_true`：被删除 #DIFF 
+- `bin_view`：被删除 #DIFF 
+- `parts_info`：存储包含已指定方向的部件信息的字典列表。
+
+
+**方法：**
+- `__init__(self, machine: Machine, process: Process) -> None`： #DIFF
+    - **功能**：类的构造函数，初始化 `Batch` 类的实例。
+    - **参数**：
+        - `machine`：`Machine` 类的实例，用于获取机器的构建参数。
+        - `process`：`Process` 类的实例，可能涉及到一些处理过程的参数。
+    - **实现细节**：
+        - 从 `machine` 实例获取 `L`、`W`、`H` 信息并进行边界处理。
+        - 存储 `machine` 和 `process` 实例。
+        - 初始化 `view_shape`。
+        - 初始化`parts_info` 为空列表。 #DIFF 
+- `@property slice_number(self) -> float`：
+    - **功能**：计算构建的切片数，根据 `parts_info` 中部件的最大高度除以 `process` 的层厚度向上取整，若批次为空则返回 0。
+    - **实现细节**：使用 `max` 函数和 `lambda` 表达式找到 `parts_info` 中 `H` 最大的元素，然后将其除以 `process.layer_thickness` 并向上取整，若批次为空则直接返回 0。
+- `get_current_view(self, stretch: bool = True, show: bool = False) -> Tensor`：
+    - 如果 show 为真，则返回当前占比，否则返回二元组，第一个元素为剩余表面积，第二个元素为占比
+- `get_rest_area(self) -> float`：
+    - **功能**：计算批次的剩余面积。
+    - **实现细节**：计算总可用面积（`L * W`）并减去已被部件占用的面积（通过 `map` 和 `lambda` 表达式计算部件的 `L * W` 之和）。
+- `get_occupied_ratio(self) -> float`：
+    - **功能**：计算部件占用的面积在机器可用面积中的比例，结果范围在 0 到 1 之间。
+    - **实现细节**：若批次为空返回 0，否则用 1 减去剩余面积占比。
+- `get_total_surface_area(self) -> float`：
+    - **功能**：计算该批次中所有部件的总表面积。
+    - **实现细节**：使用 `map` 和 `lambda` 表达式将 `parts_info` 中每个部件的表面积相加。
+- `get_total_part_volume(self) -> float`：
+    - **功能**：计算该批次中所有部件的总体积。
+    - **实现细节**：使用 `map` 和 `lambda` 表达式将 `parts_info` 中每个部件的体积相加。
+- `get_total_support_volume(self) -> float`：
+    - **功能**：计算该批次中所有部件的总支撑体积。
+    - **实现细节**：使用 `map` 和 `lambda` 表达式将 `parts_info` 中每个部件的支撑体积相加。
+- `add_part(self, part: Part, orientation: int) -> Tuple[Tensor, bool]`：
+    - **功能**：将部件添加到批次中，根据添加结果返回相应的视图和布尔值表示是否添加成功。
+    - **参数**：
+        - `part`：要添加的部件。
+        - `orientation`：部件的方向。
+    - **实现细节**：
+        - 检查部件的投影面积是否小于批次的剩余面积
+            - 若不满足则返回 `None` 和 `False`。
+            - 若满足，更新 `parts_info` 列表并更新 `bin_view`，返回更新后的视图和 `True`，否则不更新并返回原视图和 `False`。
+- `empty(self) -> bool`：
+    - **功能**：检查批次是否为空。
+    - **实现细节**：通过检查 `parts_info` 列表的长度是否小于 1 来判断。
+
+- `show_parts(self, fp)`：
+    - **功能**：将 `parts_info` 打印到文件中，同时输出批次的各种信息，如占用比例、剩余面积、切片数等。
+    - **参数**：
+        - `fp`：文件对象。
+    - **实现细节**：
+        - 遍历 `parts_info` 和 `bin_true.rect_list()` 并打印部件信息。
+        - 打印批次的各种计算信息，如占用比例、剩余面积、切片数等，还包括计算得到的批次时间和能量信息。
+- `show_view(self, dir: str) -> None`：
+    - **功能**：什么都不做
+    - 如果写好其他部分之后这个函数没有被引用就把他删了
+
+#### 3.2.2.2 `Solution`
+
+**功能概述：**
+`Solution` 类用于管理多个 `Batch` 实例，提供了操作这些 `Batch` 的一系列方法，包括添加 `Batch`、添加部件、获取当前 `Batch` 视图、计算时间和能量，以及展示整个 `Solution` 的信息。
+
+**类属性：**
+- `instance_name`：存储实例的名称，默认为 `"None"`。
+- `batches`：存储 `Batch` 实例的列表，初始为空列表。
+
+**方法：**
+- `__init__(self, instance_name: str = "None", batch_num: int = 100) -> None`：
+    - **功能**：类的构造函数，初始化 `Solution` 类的实例。
+    - **参数**：
+        - `instance_name`：实例名称，默认为 `"None"`。
+        - `batch_num`：本Solution中的所有Batch数量
+    - **实现细节**：
+        - 初始化 `instance_name` 属性和 `batch_num` 属性。
+        - 创建一个空的 `batches` 列表。
+- `init_batches(self, machine: Machine, process: Process) -> None`：
+    - **功能**：初始化，向 `Solution` 中重置 `self.batch_num` 个空的 `BatchParallel1D`。
+    - **参数**：
+        - `machine`：`Machine` 类的实例，用于创建 `Batch` 时传递给 `Batch` 的构造函数。
+        - `process`：`Process` 类的实例，用于创建 `Batch` 时传递给 `Batch` 的构造函数。
+- `def get_batch(self, idx: None|int) -> BatchParallel1D:`：
+    - **功能**：获取当前的 `Batch`。
+    - **参数**：
+        - `idx`：整数或 `None`，表示索取的 Batch 的索引
+    - **实现细节**：
+        - 首先使用 `assert` 语句确保 `batches` 列表不为空，若为空会引发异常。
+        - 如果 `idx` 的值为 `None`，则返回 `batches` 列表中的最后一个 `Batch` 实例。
+        - 否则按照 `idx` 的值索引对应的 Batch。
+- `def get_current_view(self, idx: None|int, show: bool = False) -> Tensor`：
+    - **功能**：获取当前所有 Batch 的视图。
+    - **参数**：
+        - `show`：是否显示视图，默认为 `False`。
+    - **实现细节**：
+        - 遍历 `self.batches` 中的所有 Batch，并调用各自的 `get_current_view()` 方法，最后将得到的 Tensor 堆叠起来，最终输出的形状为 `[self.batch_num, 2]`
+- `add_part(self, part: Part, orientation: int, idx: None|int) -> Tuple[Tensor, bool]`：
+    - **功能**：尝试将部件添加到当前 `Batch` 中。
+    - **参数**：
+        - `part`：要添加的部件。
+        - `orientation`：部件的方向。
+        - `idx`：整数或 `None`，表示索取的 Batch 的索引
+    - **实现细节**：
+        - 调用 `get_batch` 方法获取目标 Batch ，然后调用 `BatchParallel1D`  的 `add_part` 方法将部件添加到其中，并返回相应的结果。
+- `calculate_time(self) -> float`：
+    - **功能**：计算直到现在该 `Solution` 所需的时间。
+    - **实现细节**：
+        - 若 `Solution` 为空（即 `batches` 列表为空或所有 `Batch` 都为空），返回 0。
+        - 否则，使用 `map` 和 `lambda` 表达式计算每个 `Batch` 的时间并求和，其中调用 `calculate_batch_time` 函数。
+- `calculate_energy(self) -> float`：
+    - **功能**：计算直到现在该 `Solution` 所需的能量。
+    - **实现细节**：
+        - 若 `Solution` 为空（即 `batches` 列表为空或所有 `Batch` 都为空），返回 0。
+        - 否则，使用 `map` 和 `lambda` 表达式计算每个 `Batch` 的能量，调用 `calculate_batch_energy` 函数，并将结果求和后除以 `1e6`。
+- `show(self, out_dir: str = f"./solution/") -> None`：
+    - **功能**：展示 `Solution` 中所有 `Batch` 的部件列表和视图信息。
+    - **参数**：
+        - `out_dir`：输出目录，默认为 `"./solution/"`。
+    - **实现细节**：
+        - 首先检查 `out_dir` 是否存在，若不存在则创建该目录。
+        - 打开 `contains.txt` 文件，打印实例名称、解决方案的时间和能量。
+        - 遍历 `batches` 列表，获取每个batch的占用情况，然后输出占用条形图
+
 ### 3.2.4 能量函数和时间函数
 #### 3.2.4.1 `calculate_batch_time`
 #### 3.2.4.2 `calculate_batch_energy`
