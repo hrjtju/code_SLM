@@ -1,4 +1,3 @@
-from functools import partial
 import os
 from typing import Tuple, List, Dict, Union
 import torch
@@ -23,10 +22,10 @@ class Batch:
           the orientation chosen
     """
     def __init__(self, 
-                 machine: Machine,
-                 process: Process,
-                 view_shape: tuple,
-                 ) -> None:
+                 machine: Machine, 
+                 process: Process, 
+                 view_shape: tuple, 
+                 ) -> None: 
         
         # Fetch LWH params from instance of class Machine
         #! Real space for bin packing: (L - 2*Margin) * (W - 2*Margin)
@@ -286,44 +285,127 @@ class Solution:
         return (len(self.batches) < 1) or all(map(lambda x:x.empty(), self.batches))
 
 
+class BatchParallel1D(Batch):
+    def __init__(self,
+                 machine: Machine,
+                 process: Process,
+                 ) -> None:
+        # Fetch LWH params from instance of class Machine
+        #! Real space for bin packing: (L - 2*Margin) * (W - 2*Margin)
+        self.L = machine.build_l - 2 * process.min_distance_part_platform
+        self.W = machine.build_w - 2 * process.min_distance_part_platform
+        self.H = machine.build_h
+        
+        # define self.machine and self.process for easier access of params
+        self.machine = machine
+        self.process = process
+        
+        self.parts_info: List[dict] = []
+    
+    @property
+    def slice_number(self) -> float:
+        return super().slice_number
+    
+    def get_current_view(self, show: bool=False) -> Tensor:
+        return torch.tensor([self.get_occupied_ratio()]) if show \
+                else torch.tensor([self.get_rest_area(), 
+                             self.get_occupied_ratio()])
+    
+    def get_rest_area(self) -> float:
+        return super().get_rest_area()
+    
+    def get_occupied_ratio(self) -> float:
+        return super().get_occupied_ratio()
+    
+    def get_total_surface_area(self) -> float:
+        return super().get_total_surface_area()
+    
+    def get_total_part_volume(self) -> float:
+        return super().get_total_part_volume()
+        
+    def get_total_support_volume(self) -> float:
+        return super().get_total_support_volume()
+    
+    def add_part(self, part: Part, orientation: int) -> Tuple[Tensor, bool]:
+        # Checks if the projection area of the part is smaller than the 
+        # area available in this batch.
+        if part.get_proj_area(orientation) > self.get_rest_area():
+            return None, False
+        else:
+            self.parts_info.append(part.get_part_info(orientation))
+            # Update the current view
+            self.bin_view = self.get_current_view()
+            
+            return self.bin_view, True
+
+    def empty(self) -> bool:
+        return super().empty()
+    
+    def show_parts(self, fp):
+        return super().show_parts(fp)
+    
+    def show_view(self, dir: str) -> None:
+        return
+    
+
 # TODO: Complete 1D parallel version of solution
-class SolutionParallel1D():
-    def __init__(self, instance_name: str):
-        ...
+class SolutionParallel1D(Solution):
+    def __init__(self, 
+                 instance_name: str = None,
+                 batch_num: int = 100,
+                 ) -> None:
+        self.instance_name = instance_name
+        self.batch_num = batch_num
+        self.batches: List[BatchParallel1D] = []
     
-    def slice_number(self, idx: None|int):
-        ...
+    def init_batches(self, machine: Machine, process: Process) -> None:
+        """
+        Add an empty batch to the solution
+        """
+        self.batches = [
+            BatchParallel1D(machine, process) for _ in range(self.batch_num)
+        ]
     
-    def get_current_view(self, idx: None|int):
-        ...
+    def get_batch(self, idx: None|int) -> BatchParallel1D:
+        
+        assert len(self.batches) > 0, "There is no batches in this solution!"
+        if idx is None:
+            return self.batches[-1]
+        else:
+            return self.batches[idx]
     
-    def get_rest_area(self, idx: None|int):
-        ...
+    def get_current_view(self, show: bool = False) -> Tensor:
     
-    def get_occupied_ratio(self, idx: None|int) -> float:
-        ...
-    
-    def get_total_surface_area(self, idx: None|int) -> float:
-        ...
-    
-    def get_total_part_volume(self, idx: None|int) -> float:
-        ...
-    
-    def get_total_support_volume(self, idx: None|int) -> float:
-        ...
+        current_views = [
+            b.get_current_view(show=show) \
+                for b in self.batches
+        ]
+            
+        return torch.stack(tensors=current_views, dim=0)
     
     def add_part(self, part: Part, orientation: int, idx: None|int) -> Tuple[Tensor, float]:
-        ...
+        return self.get_batch(idx).add_part(part, orientation)
     
-    def empty(self) -> bool:
-        ...
+    def calculate_time(self) -> float:
+        return super().calculate_time()
     
-    def show_parts(self, fp) -> None:
-        ...
+    def calculate_energy(self) -> float:
+        return super().calculate_energy()
+    
+    def show(self, out_dir: str = f"./solution/") -> None:
+        if not os.path.exists(out_dir):
+            os.mkdir(out_dir)
         
-    def show_view(self, dir: str) -> None:
-        ...
-   
+        with open(os.path.join(out_dir, "contains.txt"), 'w') as f:
+            print(f"\n\t {self.instance_name} \n", file=f)
+            
+            print(f"Solution Time: {self.calculate_time()}", file=f)
+            print(f"Solution Energy: {self.calculate_energy()}", file=f)
+            
+        batch_status = list(self.get_current_view(show=True)[:, -1])
+        plt.bar(range(len(batch_status)), batch_status)
+        plt.savefig(f"{out_dir}/batch_all.jpg")
+        plt.close()
 
 CONCENTRATION_OXYGEN_INITIAL = 21
 CONCENTRATION_OXYGEN_END = 0.1
