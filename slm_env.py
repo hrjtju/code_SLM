@@ -292,7 +292,6 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
     """
     def __init__(self,
                  in_path: str,
-                 device: torch.device,
                  phase: Literal["Train", "Test"] = "train",
                  max_part_type: int = 20,
                  max_orientation_num: int = 7,
@@ -302,8 +301,6 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
                  ):
         
         random.seed(seed)
-        
-        self.device = device
         
         self.name = "SingleSLMEnvParallel1D"
         self.phase = phase
@@ -440,6 +437,6 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
 if __name__ == "__main__":
     print(joyrl.__version__) # print version
     yaml_path = "./yaml_configurations/SingleSLMEnv-v0-DQN.yaml"
-    slm_single_env = SingleSLMEnv(in_path="./instances_json/")
+    slm_single_env = SingleSLMEnvParallel1D(in_path="./instances_json/")
     joyrl.run(yaml_path=yaml_path, env=slm_single_env)
 
