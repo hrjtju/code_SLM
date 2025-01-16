@@ -324,9 +324,6 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         else:
             raise NotImplementedError
         
-        # select slm instance and load it
-        self.slm_metadata = self.get_metadata()
-        
         # pass the max params to self.slm_metadata for generating state matrix and mask matrix
         self.slm_metadata.max_part_type = max_part_type
         self.slm_metadata.max_orientation_num = max_orientation_num
