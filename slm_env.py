@@ -302,37 +302,18 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
                  ):
         
         random.seed(seed)
+        
         self.device = device
+        
+        self.name = "SingleSLMEnvParallel1D"
         self.phase = phase
         self.in_path = in_path
         self.max_part_type = max_part_type
         self.max_orientation_num = max_orientation_num
         self.max_batch_num = max_batch_num
         
-        # select slm instance and load it
-        self.slm_metadata = self.get_metadata()
-        
-        # pass the max params to self.slm_metadata for generating state matrix and mask matrix
-        self.slm_metadata.max_part_type = max_part_type
-        self.slm_metadata.max_orientation_num = max_orientation_num
-        
-        self.lwh = self.slm_metadata.machine.get_lwh()
-        
-        self.solution = SolutionParallel1D(instance_name=self.load_path)
-        
-        # total length of space:
-        # num_batch * num_param_batch + 3 + num_init_states
-        self.curr_state = torch.stack(
-            tensors=[self.solution.get_current_view().reshape(-1), 
-                     torch.tensor(self.lwh),
-                     self.slm_metadata.init_state().reshape(-1)],
-            dim=0
-        )
-        
-        self.observation_space = spaces.Box(low=0, high=float("inf"), 
-                                            shape=self.curr_state.shape)
-    
-    def get_metadata(self) -> MetaData:
+        # randomly pick a json file in the training dir
+        # and pack the training data into a class
         if self.phase == "Train":
             self.load_path = random.choice(os.listdir(self.in_path))
             self.slm_metadata = load_json_to_class(os.path.join(self.in_path, self.load_path))
@@ -346,42 +327,72 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         else:
             raise NotImplementedError
         
-        return self.slm_metadata
-    
-    def reset(self):
-        if self.phase == "Train":
-            self.__init__(in_path=self.in_path,
-                          device=self.device,
-                          phase=self.phase,
-                          max_batch_num=self.max_batch_num,
-                          max_orientation_num=self.max_orientation_num,
-                          max_part_type=self.max_part_type,
-                          seed=random.random())
-        # TODO: Add printing options of the assignment results
-        elif self.phase == "Test":
-            exit(0)
-        else:
-            raise NotImplementedError
-        return self.curr_state, self.load_path
+        # select slm instance and load it
+        self.slm_metadata = self.get_metadata()
+        
+        # pass the max params to self.slm_metadata for generating state matrix and mask matrix
+        self.slm_metadata.max_part_type = max_part_type
+        self.slm_metadata.max_orientation_num = max_orientation_num
+        
+        self.lwh = self.slm_metadata.machine.get_lwh()
+        
+        self.solution = SolutionParallel1D(instance_name=self.load_path)
+        self.solution.init_batches(
+            machine=self.slm_metadata.machine,
+            process=self.slm_metadata.process
+        )
+        
+        # total length of space:
+        # num_batch * num_param_batch + 3 + num_init_states
+        self.curr_state = torch.stack(
+            tensors=[self.solution.get_current_view().reshape(-1), 
+                     torch.tensor(self.lwh),
+                     self.slm_metadata.init_state().reshape(-1)],
+            dim=0
+        )
+        
+        self.last_criterion = 0
+        
+        self.observation_space = spaces.Box(low=0, high=float("inf"), 
+                                            shape=self.curr_state.shape)
+        self.action_space = spaces.Tuple(spaces=[
+            spaces.Box(low=0, high=float("inf"), shape=(max_batch_num, )), 
+            spaces.Box(low=0, high=float("inf"), shape=(max_part_type, )), 
+            spaces.Box(low=0, high=float("inf"), shape=(max_orientation_num, ))
+        ])
     
     def update_state(self, view: Tensor, part_id: int) -> None:
-        ...
+        self.last_state = self.curr_state
+        
+        # get the state matrix of parts at this timestamp
+        temp_part_state = self.last_state[-1]
+        assert temp_part_state.reshape(self.max_part_type, -1)[part_id, 0] > 0, \
+            "Error, trying to allocate type of part which is already 0 parts."
+        
+        # Decrement the number of type part_id by 1 (with assertion that it must greater than 0)
+        temp_part_state.view(self.max_part_type, -1)[part_id, 0] -= 1
+        
+        self.curr_state = (
+            view.reshape(-1),
+            self.last_state[1],
+            temp_part_state.reshape(-1)
+        )
     
     def done(self) -> None:
-        ...
+        """
+        Check if all the parts are allocated
+        """
+        # If any of the kind of part have unallocated instances, return False
+        return not any(self.curr_state[-1].reshape(self.max_part_type, -1)[:, 0])
     
     def slice_action(self, action: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+        """
+        Returns: `[part_dist, orientation_dist, batch_dist]`
+        """
         return action[:self.max_part_type],\
             action[self.max_part_type: self.max_part_type+self.max_orientation_num],\
             action[self.max_part_type+self.max_orientation_num:]
-    
-    # TODO: Complete this function. Return masks independently
-    def get_distribution_masks(self) -> List[Tensor]:
-        part_mask = None
-        ori_mask = None
-        batch_mask = None
-        return part_mask, ori_mask, batch_mask
-    
+
     def step(
         self, 
         action: Tensor
@@ -394,15 +405,31 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         info, reward = None, 0        
         
         distributions = self.slice_action(action=action)
-        masks = self.get_distribution_masks()
+        part_dist, ori_dist, batch_dist = distributions
         
-        masked_normalized_distributions = map(lambda x:x[1]*torch.softmax(x[0]), 
-                                                   zip(distributions, masks))
-        part_id, ori_id, batch_id = list(map(lambda x:torch.argmax(x), masked_normalized_distributions))
+        penalty = 0
         
-        new_view, penalty = self.solution.add_part(part=part_id,
-                                                   orientation=ori_id,
-                                                   idx=batch_id)
+        for part_id in torch.argsort(part_dist, descending=True):
+            if success:
+                break
+            if self.curr_state[-1][part_id, 0] < 1:
+                continue
+            for ori_id in torch.argsort(ori_dist, descending=True):
+                if success:
+                    break
+                for batch_id in torch.argsort(batch_dist, descending=True):
+                    new_view, success, penalty_tmp = self.solution.add_part(part=part_id,
+                                                            orientation=ori_id,
+                                                            idx=batch_id)
+                    penalty += penalty_tmp
+                    if success:
+                        self.update_state(view=new_view, part_id=part_id)   
+                        
+                        # If all parts are allocated, terminate this episode.
+                        # 
+                        if self.done():
+                            terminated = True
+                        break
         
         criterion = self.solution.calculate_energy()
         reward = self.last_criterion - criterion - penalty

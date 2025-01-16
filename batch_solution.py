@@ -383,8 +383,14 @@ class SolutionParallel1D(Solution):
             
         return torch.stack(tensors=current_views, dim=0)
     
-    def add_part(self, part: Part, orientation: int, idx: None|int) -> Tuple[Tensor, float]:
-        return self.get_batch(idx).add_part(part, orientation)
+    def add_part(self, part: Part, orientation: int, idx: None|int) -> Tuple[Tensor, bool, float]:
+        new_view, success = self.get_batch(idx).add_part(part, orientation)
+
+        return (
+            new_view, 
+            success,
+            0 if success else -0.1
+        )
     
     def calculate_time(self) -> float:
         return super().calculate_time()
