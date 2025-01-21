@@ -338,7 +338,7 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         
         # total length of space:
         # num_batch * num_param_batch + 3 + num_init_states
-        self.curr_state = torch.stack(
+        self.curr_state = torch.concatenate(
             tensors=[self.solution.get_current_view().reshape(-1), 
                      torch.tensor(self.lwh),
                      self.slm_metadata.init_state().reshape(-1)],
@@ -349,35 +349,74 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         
         self.observation_space = spaces.Box(low=0, high=float("inf"), 
                                             shape=self.curr_state.shape)
-        self.action_space = spaces.Tuple(spaces=[
-            spaces.Box(low=0, high=float("inf"), shape=(max_batch_num, )), 
-            spaces.Box(low=0, high=float("inf"), shape=(max_part_type, )), 
-            spaces.Box(low=0, high=float("inf"), shape=(max_orientation_num, ))
-        ])
-    
+        self.action_space = spaces.Box(low=0, high=float("inf"), shape=(max_batch_num+max_part_type+max_orientation_num, ))
+        
+        # assert torch.equal(self.curr_state, self.transform_state(self.transform_state(self.curr_state)))
+        # assert all(torch.equal(a, b) for (a, b) in zip(self.transform_state(self.curr_state), 
+        #                    self.transform_state(self.transform_state(self.transform_state(self.curr_state)))))
+
+    def transform_state(self, state: Tensor|Tuple[Tensor, Tensor, Tensor]):
+        
+        if isinstance(state, Tuple):
+            return torch.concatenate(
+                tensors=[x.reshape(-1) for x in state],
+                dim=0
+            )   
+        else:
+            view_shape = self.solution.get_current_view().shape 
+            view_flattened_len = self.solution.get_current_view().reshape(-1).shape[0]
+            parts_state_shape = self.slm_metadata.init_state().shape
+            return (
+                state[:view_flattened_len].reshape(*view_shape),
+                state[view_flattened_len:view_flattened_len+3],
+                state[view_flattened_len+3:].reshape(*parts_state_shape)
+            )
+
+    def reset(self):
+        """
+        Reset the env according to self.phase
+        
+        Returns: self.curr_state, info
+        """
+        
+        if self.phase == "Train":
+            self.__init__(in_path=self.in_path, 
+                          phase=self.phase, 
+                          max_part_type=self.max_part_type,
+                          max_orientation_num=self.max_orientation_num,
+                          max_batch_num=self.max_batch_num,
+                          seed=random.random()
+                          )
+        elif self.phase == "Test":
+            exit(0)
+        else:
+            raise NotImplementedError
+        
+        return self.curr_state, self.load_path
+
     def update_state(self, view: Tensor, part_id: int) -> None:
         self.last_state = self.curr_state
         
         # get the state matrix of parts at this timestamp
-        temp_part_state = self.last_state[-1]
-        assert temp_part_state.reshape(self.max_part_type, -1)[part_id, 0] > 0, \
+        temp_part_state = self.transform_state(self.last_state)[-1]
+        assert temp_part_state[part_id, 0] > 0, \
             "Error, trying to allocate type of part which is already 0 parts."
         
         # Decrement the number of type part_id by 1 (with assertion that it must greater than 0)
-        temp_part_state.view(self.max_part_type, -1)[part_id, 0] -= 1
+        temp_part_state[part_id, 0] -= 1
         
-        self.curr_state = (
+        self.curr_state = torch.concatenate(tensors=[
             view.reshape(-1),
-            self.last_state[1],
+            self.transform_state(self.last_state)[1],
             temp_part_state.reshape(-1)
-        )
+        ], dim=0)
     
     def done(self) -> None:
         """
         Check if all the parts are allocated
         """
         # If any of the kind of part have unallocated instances, return False
-        return not any(self.curr_state[-1].reshape(self.max_part_type, -1)[:, 0])
+        return not any(self.transform_state(self.curr_state)[-1].reshape(self.max_part_type, -1)[:, 0])
     
     def slice_action(self, action: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         """
@@ -399,23 +438,28 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         info, reward = None, 0        
         
         distributions = self.slice_action(action=action)
+        # print(action)
+        # print(distributions)
+        # print(list(map(lambda x:x.shape, distributions)))
         part_dist, ori_dist, batch_dist = distributions
         
         penalty = 0
+        success = False
         
         for part_id in torch.argsort(part_dist, descending=True):
             if success:
                 break
-            if self.curr_state[-1][part_id, 0] < 1:
+            if self.transform_state(self.curr_state)[-1][part_id, 0] < 1:
                 continue
             for ori_id in torch.argsort(ori_dist, descending=True):
                 if success:
                     break
                 for batch_id in torch.argsort(batch_dist, descending=True):
-                    new_view, success, penalty_tmp = self.solution.add_part(part=part_id,
+                    new_view, success, penalty_tmp = self.solution.add_part(part=self.slm_metadata.parts[part_id],
                                                             orientation=ori_id,
                                                             idx=batch_id)
                     penalty += penalty_tmp
+                    
                     if success:
                         self.update_state(view=new_view, part_id=part_id)   
                         
@@ -433,7 +477,7 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
 
 if __name__ == "__main__":
     print(joyrl.__version__) # print version
-    yaml_path = "./yaml_configurations/SingleSLMEnv-v0-DQN.yaml"
+    yaml_path = "./yaml_configurations/SingleSLM1dParallelEnv-v0-DQN.yaml" 
     slm_single_env = SingleSLMEnvParallel1D(in_path="./instances_json/", phase="Train")
     joyrl.run(yaml_path=yaml_path, env=slm_single_env)
 

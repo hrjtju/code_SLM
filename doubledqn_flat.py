@@ -7,10 +7,12 @@ Reference: https://hrl.boyuai.com/chapter/2/dqn%E6%94%B9%E8%BF%9B%E7%AE%97%E6%B3
 
 
 import datetime
+from functools import reduce
 import os
 import random
 import collections
 from sympy import true
+import torch.utils
 from tqdm import tqdm
 from typing import Iterable, Tuple
 import warnings
@@ -18,18 +20,23 @@ import warnings
 import numpy as np
 import torch
 import torch.nn as nn
-from torch import Tensor
+from torch import Tensor, narrow
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from tensorboardX import SummaryWriter
 
 from slm_env import SingleSLMEnv, SingleSLMEnvParallel1D
 
-def to_device(ls, device):
-    return [torch.tensor(x, device=device) for x in ls] if isinstance(ls, Iterable) else torch.tensor(ls, device=device)
+def to_device(x, device):
+    try:
+        x.to(device)
+    except AttributeError:
+        return x
+    
+    return x.to(device)
 
 def repack(t: Tuple):
-    return list(map(lambda x: torch.stack(x, dim=0), list(zip(*t))))
+    return torch.stack(t, dim=0)
 
 class ReplayBuffer:
     """
@@ -66,69 +73,20 @@ class QNet(nn.Module):
         self.view_shape = view_shape
         self.device = device
         
-        self.view_nn = nn.Sequential(
-            nn.Conv2d(in_channels=1, out_channels=8, kernel_size=3, padding=2),
-            nn.MaxPool2d(2),
+        self.policy = nn.Sequential(
+            nn.Linear(in_features=923, out_features=512),
             nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels=8, out_channels=16, kernel_size=3, padding=2),
-            nn.MaxPool2d(2),
+            nn.Linear(in_features=512, out_features=256),
             nn.ReLU(inplace=True),
-            nn.Flatten()
-        )
-        self.lwh_nn = nn.Sequential(
-            nn.Linear(in_features=3, out_features=32),
+            nn.Linear(in_features=256, out_features=128),
             nn.ReLU(inplace=True),
-            nn.Linear(in_features=32, out_features=32),
-            nn.ReLU(inplace=True)
-        )
-        self.part_nn = nn.Sequential(
-            nn.Linear(in_features=self.max_part*(3 + 4 * self.max_ori), out_features=128),
-            nn.ReLU(inplace=True),
-            nn.Linear(in_features=128, out_features=128),
-            nn.ReLU(inplace=True)
-        )
-        
-        view_feature_len = self.view_nn(torch.rand(size=(1, *self.view_shape)))\
-            .reshape(-1).shape[0]
-        
-        self.bottleneck = nn.Sequential(
-            nn.Linear(in_features=160+view_feature_len, out_features=128),
-            nn.ReLU(inplace=True),
-            nn.Linear(in_features=128, out_features=128),
-            nn.ReLU(inplace=True)
-        )
-        
-        self.policy_part = nn.Sequential(
-            nn.Linear(in_features=128, out_features=128),
-            nn.ReLU(inplace=True),
-            nn.Linear(in_features=128, out_features=self.max_part),
-            nn.Sigmoid()
-        )
-        self.policy_orientation = nn.Sequential(
-            nn.Linear(in_features=128, out_features=128),
-            nn.ReLU(inplace=True),
-            nn.Linear(in_features=128, out_features=self.max_ori),
+            nn.Linear(in_features=128, out_features=47),
             nn.Sigmoid()
         )
         
-    def forward(self, x: Tuple[Tensor, Tensor, Tensor]) -> Tuple[Tensor, Tensor]:
-        view, lwh, part = list(map(lambda x:x.to(self.device), x))
-        batch_size = view.shape[0]
-        
-        f_view = self.view_nn(view).reshape(batch_size, -1)
-        f_lwh = self.lwh_nn(lwh).reshape(batch_size, -1)
-        f_part = self.part_nn(part).reshape(batch_size, -1)
-        
-        feature = torch.concat(
-            tensors=[f_view, f_lwh, f_part],
-            dim=-1
-        )
-        p_feature = self.bottleneck(feature)
-        
-        part_dist = self.policy_part(p_feature)
-        orientation_dist = self.policy_orientation(p_feature)
-        
-        return part_dist, orientation_dist
+    def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
+        dist = self.policy(x)        
+        return dist
         
 class DoubleDQN:
     def __init__(self, 
@@ -139,12 +97,14 @@ class DoubleDQN:
                  device: torch.device,
                  max_part: int = 20, 
                  max_ori: int = 7, 
+                 max_batch: int = 20,
                  view_shape: Tuple[int, int] = (224, 224),
                  
                  ) -> None:
         
         self.max_part = max_part
         self.max_ori = max_ori
+        self.max_batch = max_batch
         self.view_shape = view_shape
         
         self.gamma = gamma
@@ -164,32 +124,58 @@ class DoubleDQN:
         # TODO: Check the two branches of these actions
         if np.random.random() < self.epsilon:
             action = (
-                torch.randn(self.max_part).abs() + 0.01, torch.randn(self.max_ori).abs() + 0.01
+                torch.randn(self.max_part+self.max_ori+self.max_batch).abs() + 0.01
                 )
-            action = tuple(map(lambda x:x.reshape(1, -1), action))
         else:
             action = self.q_net(state)
         
         return action
 
+    def split_actions(self, a: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+        """
+        Split action tensor into part, orientation and batch part.
+        """
+        # a: [batch+_size, MAX_PART_TYPE + MAX_ORIENTATION_NUM + MAX_BATCH_NUM]
+        return (
+            a.narrow(-1, 0, MAX_PART_TYPE),
+            a.narrow(-1, MAX_PART_TYPE, MAX_ORIENTATION_NUM),
+            a.narrow(-1, MAX_PART_TYPE+MAX_ORIENTATION_NUM, MAX_BATCH_NUM)
+        )
+    
+    def batch_kronecker_product_flatten(self, tensors) -> Tensor:
+        return reduce(lambda x,y:torch.einsum("ia,ib->iab", x.flatten(1), y.flatten(1)).flatten(-1), 
+                      tensors)
+    
     def update(self, transition_dict):
-        states = list(map(lambda x: x.clone().detach().to(self.device), 
-                          transition_dict["states"]))
-        actions = list(map(lambda x:x.clone().detach().to(self.device), 
-                           transition_dict["actions"]))
+        states = transition_dict["states"]
+        actions = transition_dict["actions"]
         rewards = torch.tensor(transition_dict["rewards"]).to(self.device)
-        next_states = list(map(lambda x: x.clone().detach().to(self.device), 
-                          transition_dict["next_states"]))
+        next_states = transition_dict["next_states"]
         dones = torch.tensor(transition_dict["dones"], dtype=torch.float32).to(self.device)
         
-        q_values = torch.concat(self.q_net(states), -1)\
-            .gather(1, torch.concat(list(map(lambda x: torch.argmax(x, -1), actions)), -1))\
-                .sum(-1)
+        ## TODO: Split and apply addition to q values
+        net_state_output = self.q_net(states)
+        splitted_max_actions = self.split_actions(net_state_output)
+        splitted_done_actions = self.split_actions(actions)
+        # TODO: Split tensors into 3 parts and calculate q values individually
+        max_action_sets = self.q_net(next_states)
+        target_action_sets = self.target_q_net(next_states)
+        splitted_max_actions_next = self.split_actions(max_action_sets)
+        splitted_max_actions_target = self.split_actions(target_action_sets)
         
-        # TODO: Check Correctness
-        max_action = self.q_net(next_states)
-        max_next_q = sum(map(lambda x: x[0].gather(1, x[1].max(1)[1].view(-1,1)), 
-                             zip(self.target_q_net(next_states), max_action))).reshape(-1)
+        # TODO: q value is defined as sum of largest q in part, orientation and batch.
+        q_values = sum(map(lambda x:x[0].gather(1, x[1].max(1)[1].view(-1, 1)), zip(splitted_max_actions, splitted_done_actions)))
+        max_next_q = sum(map(lambda x:x[0].gather(1, x[1].max(1)[1].view(-1, 1)), zip(splitted_max_actions_target, splitted_max_actions_next)))
+        
+        # ## TODO: OR split and apply kronecker product
+        # tensor_max_actions = self.batch_kronecker_product_flatten(splitted_max_actions)
+        # tensor_done_actions = self.batch_kronecker_product_flatten(splitted_done_actions)
+        # tensor_max_actions_next = self.batch_kronecker_product_flatten(splitted_max_actions_next)
+        # tensor_max_actions_target = self.batch_kronecker_product_flatten(splitted_max_actions_target)
+        
+        # q_values = tensor_max_actions.gather(1, tensor_done_actions.max(1)[1].view(-1, 1))
+        # max_next_q = tensor_max_actions_next.gather(1, tensor_max_actions_target.max(1)[1].view(-1, 1))
+        
         q_targets = rewards + self.gamma * max_next_q * (1 - dones)
         
         dqn_loss = torch.mean(F.mse_loss(q_values, q_targets))
@@ -219,9 +205,14 @@ if __name__ == "__main__":
     batch_size = 8
     device = torch.device("cuda")
     
+    MAX_PART_TYPE = 20
+    MAX_ORIENTATION_NUM = 7
+    MAX_BATCH_NUM = 20
+    
     replay_buffer = ReplayBuffer(buffer_size)
     
-    agent = DoubleDQN(lr, gamma, epsilon, target_update, device)
+    agent = DoubleDQN(lr, gamma, epsilon, target_update, device, 
+                      max_part=MAX_PART_TYPE, max_ori=MAX_ORIENTATION_NUM, max_batch=MAX_BATCH_NUM)
     
     now_str = str(datetime.datetime.now()).split('.')[0].replace(':', '_').replace(' ', '_')
     os.mkdir(f'./tf-logs/{agent.__class__.__name__}_{now_str}')
@@ -230,7 +221,8 @@ if __name__ == "__main__":
     return_list = []
     instances_dict = {}
     
-    env = SingleSLMEnvParallel1D(in_path="./instances_generated_json/", phase="Train")
+    env = SingleSLMEnvParallel1D(in_path="./instances_json/", phase="Train",
+                                 max_part_type=MAX_PART_TYPE, max_batch_num=MAX_BATCH_NUM, max_orientation_num=MAX_ORIENTATION_NUM)
     env_name = env.name
     
     for i in range(10):
@@ -241,7 +233,8 @@ if __name__ == "__main__":
                 done = False
                 
                 while not done:
-                    action = agent.take_action(state)
+                    
+                    action = agent.take_action(state.to(device))
                     next_state, reward, terminate, truncate, _ = env.step(action)
                     done = terminate or truncate
                     
@@ -253,6 +246,7 @@ if __name__ == "__main__":
                     
                     if replay_buffer.size() > minimal_size:
                         b_s, b_a, b_r, b_ns, b_d = replay_buffer.sample(batch_size)
+                        # print(b_s.shape)
                         agent.update(
                             transition_dict=dict(
                                 states = to_device(b_s, device),
@@ -279,4 +273,3 @@ if __name__ == "__main__":
                 # writer.add_scalar(f"{instance}", scalar_value=episode_return, global_step=instances_dict.get(instance))
                 
                 pbar.update(1)
-                # asd

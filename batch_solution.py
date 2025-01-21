@@ -1,7 +1,7 @@
 import os
 from typing import Tuple, List, Dict, Union
 import torch
-from torch import Tensor as Tensor
+from torch import Tensor as Tensor, tensor
 from rectpack import newPacker, PackingMode
 from math import ceil, floor
 import matplotlib.pyplot as plt
@@ -309,10 +309,16 @@ class BatchParallel1D(Batch):
     def get_current_view(self, show: bool=False) -> Tensor:
         return torch.tensor([self.get_occupied_ratio()]) if show \
                 else torch.tensor([self.get_rest_area(), 
-                             self.get_occupied_ratio()])
+                             self.get_occupied_ratio(), 
+                             self.get_largest_height()])
     
     def get_rest_area(self) -> float:
         return super().get_rest_area()
+    
+    def get_largest_height(self) -> float:
+        if self.empty():
+            return 0
+        return max(self.parts_info, key=lambda x:x["H"])["H"]
     
     def get_occupied_ratio(self) -> float:
         return super().get_occupied_ratio()
@@ -329,7 +335,13 @@ class BatchParallel1D(Batch):
     def add_part(self, part: Part, orientation: int) -> Tuple[Tensor, bool]:
         # Checks if the projection area of the part is smaller than the 
         # area available in this batch.
-        if part.get_proj_area(orientation) > self.get_rest_area():
+        
+        try: 
+            proj_area = part.get_proj_area(orientation)
+        except IndexError:
+            return None, False
+        
+        if proj_area > self.get_rest_area():
             return None, False
         else:
             self.parts_info.append(part.get_part_info(orientation))
@@ -339,7 +351,7 @@ class BatchParallel1D(Batch):
             return self.bin_view, True
 
     def empty(self) -> bool:
-        return super().empty()
+        return len(self.parts_info) < 1
     
     def show_parts(self, fp):
         return super().show_parts(fp)
@@ -380,23 +392,25 @@ class SolutionParallel1D(Solution):
             b.get_current_view(show=show) \
                 for b in self.batches
         ]
-            
+        
+        # shape: [n, 3]
         return torch.stack(tensors=current_views, dim=0)
     
     def add_part(self, part: Part, orientation: int, idx: None|int) -> Tuple[Tensor, bool, float]:
-        new_view, success = self.get_batch(idx).add_part(part, orientation)
+        
+        _, success = self.get_batch(idx).add_part(part, orientation)
 
         return (
-            new_view, 
+            self.get_current_view(show=False), 
             success,
-            0 if success else -0.1
+            0 if success else 0.1
         )
     
     def calculate_time(self) -> float:
-        return super().calculate_time()
+        return 0 if self.empty() else sum(map(lambda x:calculate_batch_time(x)["total_time"], self.batches))
     
     def calculate_energy(self) -> float:
-        return super().calculate_energy()
+        return 0 if self.empty() else sum(map(lambda x:calculate_batch_energy(x)["EPC"], self.batches)) / 1e9
     
     def show(self, out_dir: str = f"./solution/") -> None:
         if not os.path.exists(out_dir):
@@ -417,11 +431,11 @@ CONCENTRATION_OXYGEN_INITIAL = 21
 CONCENTRATION_OXYGEN_END = 0.1
 
 def calculate_batch_time(
-    b: Batch
+    b: Batch|BatchParallel1D
     ) -> Dict[str, float]:
     
     if b.empty():
-        return 0
+        return {"total_time": 0}
     
     process = b.process
     
@@ -479,7 +493,7 @@ def calculate_batch_energy(
     ) -> Dict[str, Union[float, np.ndarray, pd.DataFrame]]:
     
     if b.empty():
-        return 0
+        return {"EPC": 0}
     
     process = b.process
     machine = b.machine
