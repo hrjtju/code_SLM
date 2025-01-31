@@ -403,7 +403,7 @@ class SolutionParallel1D(Solution):
         return (
             self.get_current_view(show=False), 
             success,
-            0 if success else 0.1
+            0 if success else 0.01
         )
     
     def calculate_time(self) -> float:

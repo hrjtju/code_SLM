@@ -194,15 +194,15 @@ if __name__ == "__main__":
     
     warnings.filterwarnings("ignore")
     
-    lr = 2e-5
+    lr = 5e-5
     num_episodes = 10000
     hidden_dim = 128
     gamma = 1.00
-    epsilon = 0.01 # 0.05
+    epsilon = 0.05 # 0.05
     target_update = 5
     buffer_size = 20000
     minimal_size = 600
-    batch_size = 8
+    batch_size = 16
     device = torch.device("cuda")
     
     MAX_PART_TYPE = 20
@@ -219,6 +219,7 @@ if __name__ == "__main__":
     writer = SummaryWriter(f'./tf-logs/{agent.__class__.__name__}_{now_str}')
     
     return_list = []
+    energy_list = []
     instances_dict = {}
     
     env = SingleSLMEnvParallel1D(in_path="./instances_json/", phase="Train",
@@ -258,18 +259,24 @@ if __name__ == "__main__":
                         )
                         
                 return_list.append(episode_return)
+                energy_list.append(env.last_criterion)
 
                 episode_id = int(num_episodes / 10 * i + i_episode + 1)
-                moving_avg_return = np.mean(return_list[-100:] if len(return_list) > 100 else np.mean(return_list))
+                moving_avg_return = np.mean(return_list[-200:] if len(return_list) > 200 else np.mean(return_list))
+                moving_ene_return = np.mean(energy_list[-200:] if len(energy_list) > 200 else np.mean(energy_list))
                 
                 pbar.set_postfix({
                     "episode": f"{episode_id:4d}",
-                    "return": f"{f'{moving_avg_return:.6e}':12s}"
+                    "return": f"{f'{moving_avg_return:.6e}':12s}",
+                    "energy": f"{f'{moving_ene_return:.6e}':12s}"
                 })
 
                 instances_dict[instance] = 1 if instance not in instances_dict else instances_dict[instance]+1
                 
                 writer.add_scalar("Avg Episode Return", moving_avg_return, episode_id)
+                writer.add_scalar("Avg Energy Return", moving_ene_return, episode_id)
                 # writer.add_scalar(f"{instance}", scalar_value=episode_return, global_step=instances_dict.get(instance))
                 
                 pbar.update(1)
+    
+    torch.save(agent.q_net.state_dict(), f"./model_params/{agent.__class__.__name__}_{now_str}.pt")
