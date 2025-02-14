@@ -1,5 +1,10 @@
+from importlib.metadata import distributions
+from re import M
+from typing import Callable, Tuple
 import gymnasium as gym
+from pandas import Categorical
 import torch
+import torch.nn as nn 
 import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,23 +21,51 @@ def compute_advantage(gamma, lmbda, td_delta):
     return torch.tensor(advantage_list, dtype=torch.float)
 
 class PolicyNet(torch.nn.Module):
-    def __init__(self, state_dim, hidden_dim, action_dim):
+    def __init__(self, state_dim, hidden_dim, action_dim, max_part_type, max_ori_num, max_batch_num):
         super(PolicyNet, self).__init__()
-        self.fc1 = torch.nn.Linear(state_dim, hidden_dim)
-        self.fc_mu = torch.nn.Linear(hidden_dim, action_dim)
-        self.fc_std = torch.nn.Linear(hidden_dim, action_dim)
-    
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        mu = 2.0 * torch.tanh(self.fc_mu(x))
-        std = F.softplus(self.fc_std(x))
-        return mu, std 
-    
+        self.policy_stem = nn.Sequential(
+            nn.Linear(in_features=923, out_features=512),
+            nn.ReLU(inplace=True),
+            nn.Linear(in_features=512, out_features=256),
+            nn.ReLU(inplace=True)
+        )
+        self.policy_batch = nn.Sequential(
+            nn.Linear(256, 128),
+            nn.LeakyReLU(),
+            nn.Linear(128, max_batch_num),
+            nn.Softmax(dim=-1)
+        )
+        self.policy_part = nn.Sequential(
+            nn.Linear(256, 128),
+            nn.LeakyReLU(),
+            nn.Linear(128, max_part_type),
+            nn.Softmax(dim=-1)
+        )
+        self.policy_orientation = nn.Sequential(
+            nn.Linear(256, 128),
+            nn.LeakyReLU(),
+            nn.Linear(128, max_ori_num),
+            nn.Softmax(dim=-1)
+        )
+        
+    def forward(self, x):        
+        feature_stem = self.policy_stem(x)
+        batch_dist = self.policy_batch(feature_stem)
+        part_dist = self.policy_part(feature_stem)
+        ori_dist = self.policy_orientation(feature_stem)
+        
+        return part_dist, ori_dist, batch_dist
+        
 class ValueNet(torch.nn.Module):
     def __init__(self, state_dim, hidden_dim):
         super().__init__()
-        self.fc1 = torch.nn.Linear(state_dim, hidden_dim)
-        self.fc2 = torch.nn.Linear(hidden_dim, 1)
+        self.policy = nn.Sequential(
+            nn.Linear(in_features=923, out_features=512),
+            nn.ReLU(inplace=True),
+            nn.Linear(in_features=512, out_features=256),
+            nn.ReLU(inplace=True),
+            nn.Linear(in_features=256, out_features=1)
+        )
         
     def forward(self, x):
         x = F.relu(self.fc1(x))
@@ -41,9 +74,12 @@ class ValueNet(torch.nn.Module):
 class PPO:
     """PPO CLIP Version"""
     def __init__(self, state_dim, hidden_dim, action_dim, actor_lr, critic_lr,
-                 lmbda, epochs, eps, gamma, device):
-        self.actor = PolicyNet(state_dim, hidden_dim, action_dim).to(device)
-        self.critic = ValueNet(state_dim, hidden_dim).to(device)
+                 lmbda, epochs, eps, gamma, device,
+                 max_part_type, max_ori_num, max_batch_num):
+        self.actor: Callable[[torch.Tensor], Tuple[torch.Tensor]] \
+            = PolicyNet(state_dim, hidden_dim, action_dim, max_part_type, max_ori_num, max_batch_num).to(device)
+        self.critic: Callable[[torch.Tensor], torch.Tensor] \
+            = ValueNet(state_dim, hidden_dim).to(device)
         
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), actor_lr)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), critic_lr)
@@ -54,18 +90,19 @@ class PPO:
         self.eps = eps
         self.device = device
     
-    def take_action(self, state):
-        state = torch.tensor(np.array([state]), dtype=torch.float).to(self.device)
-        mu, sigma = self.actor(state)
-        action_dist = torch.distributions.Normal(mu, sigma)
-        action = action_dist.sample()
-        return [action.item()]
+    def log_prob(self, state_actions: torch.Tensor, actions_history):
+        return torch.log(action.gather(1))
     
-    
+    def take_action(self, state: torch.Tensor):
+        state = state.reshape(1, -1)
+        dists = self.actor(state)
+        action_dists = list(map(lambda x:torch.distributions.Categorical(x), dists))
+        actions = list(map(lambda x:x.sample(), action_dists))
+        return [a.item() for a in actions]
     
     def update(self, transition_dict):
         states = torch.tensor([transition_dict["states"]], dtype=torch.float).to(self.device)
-        actions = torch.tensor([transition_dict["actions"]], dtype=torch.float).to(self.device)
+        actions = [torch.tensor([i]).view(-1, 1).to(self.device) for i in transition_dict["actions"]]
         rewards = torch.tensor([transition_dict["rewards"]], dtype=torch.float).to(self.device)
         next_states = torch.tensor([transition_dict["next_states"]], dtype=torch.float).to(self.device)
         dones = torch.tensor([transition_dict["dones"]], dtype=torch.float).to(self.device)
@@ -75,19 +112,23 @@ class PPO:
         td_delta = rewards - self.critic(states)
         advantage = compute_advantage(self.gamma, self.lmbda, td_delta.cpu()).to(self.device)
         
-        mu, std = self.actor(states)
-        action_dists: torch.distributions.Normal = torch.distributions.Normal(mu.detach(), std.detach())
-        old_log_probs = action_dists.log_prob(actions)
+        dists = self.actor(state)
+        old_log_probs_ls =  list(map(
+            lambda x: torch.log(x[0].gather(1, x[1])).detach(),
+            zip(dists, actions)
+        ))
         
         for _ in range(self.epochs):
+            dists = self.actor(state)
+            log_probs_ls =  list(map(
+                lambda x: torch.log(x[0].gather(1, x[1])).detach(),
+                zip(dists, actions)
+            ))
             
-            mu, std = self.actor(states)
-            action_dists = torch.distributions.Normal(mu, std)
-            log_probs = action_dists.log_prob(actions)
-            
-            ratio = torch.exp(log_probs - old_log_probs)
-            surr1 = ratio * advantage
-            surr2 = torch.clamp(ratio, 1 - self.eps, 1 + self.eps) * advantage
+            ratio_ls = [torch.exp(lp, olp) for (lp, olp) in zip(log_probs_ls, old_log_probs_ls)]
+            surr1 = sum(map(lambda x:x*advantage, ratio_ls))
+            surr2 = sum(map(lambda x:torch.clamp(x, 1 - self.eps, 1 + self.eps) * advantage,
+                            ratio_ls))
             
             actor_loss = torch.mean(-torch.min(surr1, surr2))
             critic_loss = torch.mean(F.mse_loss(self.critic(states), td_target.detach()))

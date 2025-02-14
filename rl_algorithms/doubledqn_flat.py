@@ -25,7 +25,7 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from tensorboardX import SummaryWriter
 
-from slm_env import SingleSLMEnv, SingleSLMEnvParallel1D
+from slm_model.slm_env import SingleSLMEnv, SingleSLMEnvParallel1D
 
 def to_device(x, device):
     try:

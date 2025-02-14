@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-from slm_classes import Machine, Part, Process
-from bin_packing import allocate_bin_packing_2d
+from slm_model.slm_classes import Machine, Part, Process
+from slm_model.bin_packing import allocate_bin_packing_2d
 
 class Batch:
     """

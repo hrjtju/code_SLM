@@ -7,8 +7,8 @@ from torch import Tensor as Tensor
 import joyrl
 from gymnasium import Env, spaces
 
-from slm_classes import MetaData, load_json_to_class
-from batch_solution import Solution, SolutionParallel1D
+from slm_model.slm_classes import MetaData, load_json_to_class
+from slm_model.batch_solution import Solution, SolutionParallel1D
 
 #! Add Unit Test
 
@@ -428,7 +428,7 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
 
     def step(
         self, 
-        action: Tensor
+        actions: Tensor
         ) -> Tuple[Tensor, float, bool, bool, str]:
         """
         Action: Concatenation of three tensors
@@ -437,37 +437,44 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         terminated, truncated = False, False
         info, reward = None, 0        
         
-        distributions = self.slice_action(action=action)
-        # print(action)
-        # print(distributions)
-        # print(list(map(lambda x:x.shape, distributions)))
-        part_dist, ori_dist, batch_dist = distributions
+        part, ori, batch = actions
         
         penalty = 0
         success = False
         
-        for part_id in torch.argsort(part_dist, descending=True):
-            if success:
-                break
-            if self.transform_state(self.curr_state)[-1][part_id, 0] < 1:
-                continue
-            for ori_id in torch.argsort(ori_dist, descending=True):
-                if success:
-                    break
-                for batch_id in torch.argsort(batch_dist, descending=True):
-                    new_view, success, penalty_tmp = self.solution.add_part(part=self.slm_metadata.parts[part_id],
-                                                            orientation=ori_id,
-                                                            idx=batch_id)
-                    penalty += penalty_tmp
+        #! If NOT Using PPO:
+        # for part_id in torch.argsort(part_dist, descending=True):
+        #     if success:
+        #         break
+        #     if self.transform_state(self.curr_state)[-1][part_id, 0] < 1:
+        #         continue
+        #     for ori_id in torch.argsort(ori_dist, descending=True):
+        #         if success:
+        #             break
+        #         for batch_id in torch.argsort(batch_dist, descending=True):
+        #             new_view, success, penalty_tmp = self.solution.add_part(part=self.slm_metadata.parts[part_id],
+        #                                                     orientation=ori_id,
+        #                                                     idx=batch_id)
+        #             penalty += penalty_tmp
                     
-                    if success:
-                        self.update_state(view=new_view, part_id=part_id)   
+        #             if success:
+        #                 self.update_state(view=new_view, part_id=part_id)   
                         
-                        # If all parts are allocated, terminate this episode.
-                        # 
-                        if self.done():
-                            terminated = True
-                        break
+        #                 # If all parts are allocated, terminate this episode.
+        #                 # 
+        #                 if self.done():
+        #                     terminated = True
+        #                 break
+        
+        #! If Using PPO:
+        new_view, success, penalty_tmp = self.solution.add_part(part=self.slm_metadata.parts[part], orientation=ori, idx=batch)
+        
+        if success:
+            self.update_state(new_view, part)
+            if self.done():
+                terminated = True
+                
+        penalty_tmp = penalty_tmp * 10 
         
         criterion = self.solution.calculate_energy()
         reward = self.last_criterion - criterion - penalty
