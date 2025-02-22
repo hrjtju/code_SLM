@@ -122,7 +122,7 @@ class SingleSLMEnv(Env):
             - The remaining number of parts is greater than 0
             - There is at least 1 legal orientation
         """
-        return ((self.state[-1][:, 0] > 0) * (torch.sum(self.slm_metadata.mask_matrix(), dim=-1) > 0)).reshape(-1)
+        return ((self.curr_state[-1][:, 0] > 0) * (torch.sum(self.slm_metadata.mask_matrix(), dim=-1) > 0)).reshape(-1)
     
     # verify physical constraints
     def check_geo_constraints(self) -> float:
@@ -330,7 +330,7 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         
         self.lwh = self.slm_metadata.machine.get_lwh()
         
-        self.solution = SolutionParallel1D(instance_name=self.load_path)
+        self.solution = SolutionParallel1D(instance_name=self.load_path, batch_num=max_batch_num)
         self.solution.init_batches(
             machine=self.slm_metadata.machine,
             process=self.slm_metadata.process
@@ -354,7 +354,14 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         # assert torch.equal(self.curr_state, self.transform_state(self.transform_state(self.curr_state)))
         # assert all(torch.equal(a, b) for (a, b) in zip(self.transform_state(self.curr_state), 
         #                    self.transform_state(self.transform_state(self.transform_state(self.curr_state)))))
-
+    def get_unavailable_parts_mask(self):
+        """
+        get unavailable mask of the part types. The indices of the output vector is 1 iff
+            - The remaining number of parts is greater than 0
+            - There is at least 1 legal orientation
+        """
+        return self.transform_state(self.curr_state)[-1][:, 0] < 1
+    
     def transform_state(self, state: Tensor|Tuple[Tensor, Tensor, Tensor]):
         
         if isinstance(state, Tuple):
@@ -467,7 +474,10 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         #                 break
         
         #! If Using PPO:
-        new_view, success, penalty_tmp = self.solution.add_part(part=self.slm_metadata.parts[part], orientation=ori, idx=batch)
+        new_view, success, penalty_tmp = self.solution.add_part(part=self.slm_metadata.parts[part], 
+                                                                orientation=ori, 
+                                                                idx=batch,
+                                                                hard=False)
         
         if success:
             self.update_state(new_view, part)

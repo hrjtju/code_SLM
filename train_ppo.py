@@ -32,6 +32,10 @@ MAX_BATCH_NUM = 20
 
 replay_buffer = ReplayBuffer(buffer_size)
 
+env = SingleSLMEnvParallel1D(in_path="./instances_json/", phase="Train",
+                             max_part_type=MAX_PART_TYPE, max_batch_num=MAX_BATCH_NUM, max_orientation_num=MAX_ORIENTATION_NUM)
+env_name = env.name
+
 # agent = DoubleDQN(lr, gamma, epsilon, target_update, device, 
 #                   max_part=MAX_PART_TYPE, max_ori=MAX_ORIENTATION_NUM, max_batch=MAX_BATCH_NUM)
 agent = PPO(state_dim=923,
@@ -46,7 +50,8 @@ agent = PPO(state_dim=923,
             device=torch.device("cuda"),
             max_part_type=MAX_PART_TYPE,
             max_batch_num=MAX_BATCH_NUM,
-            max_ori_num=MAX_ORIENTATION_NUM)
+            max_ori_num=MAX_ORIENTATION_NUM,
+            env=env)
 
 now_str = str(datetime.datetime.now()).split('.')[0].replace(':', '_').replace(' ', '_')
 os.mkdir(f'./tf-logs/{agent.__class__.__name__}_{now_str}')
@@ -56,14 +61,19 @@ return_list = []
 energy_list = []
 instances_dict = {}
 
-env = SingleSLMEnvParallel1D(in_path="./instances_json/", phase="Train",
-                             max_part_type=MAX_PART_TYPE, max_batch_num=MAX_BATCH_NUM, max_orientation_num=MAX_ORIENTATION_NUM)
-env_name = env.name
 
 for i in range(epochs):
     with tqdm(total=int(num_episodes//epochs), desc=f"Iteration {i}", leave=False, position=0) as pbar:
         for i_episode in range(int(num_episodes//epochs)):
             episode_return = 0
+            
+            transition_dict = {
+                    "states": [],
+                    "actions": [],
+                    "next_states": [],
+                    "rewards": [],
+                    "dones": []
+            }
             
             state, instance = env.reset()
             done = False
@@ -74,27 +84,18 @@ for i in range(epochs):
                 next_state, reward, terminate, truncate, _ = env.step(action)
                 done = terminate or truncate
                 
-                replay_buffer.add(*list(map(lambda x: to_device(x, "cpu"), [state, action, reward, next_state, done])))
-                # replay_buffer.add(state, action, reward, next_state, done)
+                transition_dict["states"].append(state)
+                transition_dict["actions"].append(action)
+                transition_dict["next_states"].append(next_state)
+                transition_dict["rewards"].append(reward)
+                transition_dict["dones"].append(done)
                 
                 state = next_state
                 episode_return += reward
                 
-                if replay_buffer.size() > minimal_size:
-                    b_s, b_a, b_r, b_ns, b_d = replay_buffer.sample(batch_size)
-                    # print(b_s.shape)
-                    agent.update(
-                        transition_dict=dict(
-                            states = to_device(b_s, device),
-                            actions = to_device(b_a, device),
-                            next_states = to_device(b_ns, device),
-                            rewards = to_device(b_r, device),
-                            dones = to_device(b_d, device)
-                        )
-                    )
-                    
             return_list.append(episode_return)
             energy_list.append(env.last_criterion)
+            agent.update(transition_dict)
 
             episode_id = int(num_episodes / 10 * i + i_episode + 1)
             moving_avg_return = np.mean(return_list[-200:] if len(return_list) > 200 else np.mean(return_list))

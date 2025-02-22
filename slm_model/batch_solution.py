@@ -332,23 +332,30 @@ class BatchParallel1D(Batch):
     def get_total_support_volume(self) -> float:
         return super().get_total_support_volume()
     
-    def add_part(self, part: Part, orientation: int) -> Tuple[Tensor, bool]:
+    def add_part(self, part: Part, orientation: int, hard: bool) -> Tuple[Tensor, bool, float]:
         # Checks if the projection area of the part is smaller than the 
         # area available in this batch.
         
-        try: 
-            proj_area = part.get_proj_area(orientation)
-        except IndexError:
-            return None, False
-        
-        if proj_area > self.get_rest_area():
-            return None, False
-        else:
-            self.parts_info.append(part.get_part_info(orientation))
-            # Update the current view
-            self.bin_view = self.get_current_view()
+        if hard:
+            try: 
+                proj_area = part.get_proj_area(orientation)
+            except IndexError:
+                return None, False
             
-            return self.bin_view, True
+            if proj_area > self.get_rest_area():
+                return None, False
+            else:
+                self.parts_info.append(part.get_part_info(orientation))
+                # Update the current view
+                self.bin_view = self.get_current_view()
+                
+                return self.bin_view, True
+        else:
+            proj_area = part.get_proj_area(orientation)
+            rest_area = self.get_rest_area()
+            self.parts_info.append(part.get_part_info(orientation))
+            
+            return self.get_current_view(), True, 0.01 * (max(0, proj_area - rest_area)) ** 2
 
     def empty(self) -> bool:
         return len(self.parts_info) < 1
@@ -396,14 +403,14 @@ class SolutionParallel1D(Solution):
         # shape: [n, 3]
         return torch.stack(tensors=current_views, dim=0)
     
-    def add_part(self, part: Part, orientation: int, idx: None|int) -> Tuple[Tensor, bool, float]:
+    def add_part(self, part: Part, orientation: int, idx: None|int, hard: bool = True) -> Tuple[Tensor, bool, float]:
         
-        _, success = self.get_batch(idx).add_part(part, orientation)
+        _, success, penalty = self.get_batch(idx).add_part(part, orientation, hard=hard)
 
         return (
             self.get_current_view(show=False), 
             success,
-            0 if success else 0.01
+            (0 if success else 0.01) if hard else penalty
         )
     
     def calculate_time(self) -> float:

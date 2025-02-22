@@ -9,6 +9,7 @@ import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from slm_model.slm_env import SingleSLMEnvParallel1D
 
 def compute_advantage(gamma, lmbda, td_delta):
     td_delta = td_delta.detach().numpy()
@@ -21,10 +22,13 @@ def compute_advantage(gamma, lmbda, td_delta):
     return torch.tensor(advantage_list, dtype=torch.float)
 
 class PolicyNet(torch.nn.Module):
-    def __init__(self, state_dim, hidden_dim, action_dim, max_part_type, max_ori_num, max_batch_num):
+    def __init__(self, state_dim, hidden_dim, action_dim, max_part_type, max_ori_num, max_batch_num, env: SingleSLMEnvParallel1D, device):
         super(PolicyNet, self).__init__()
+        self.env = env 
+        self.device = device
+        
         self.policy_stem = nn.Sequential(
-            nn.Linear(in_features=923, out_features=512),
+            nn.Linear(in_features=683, out_features=512),
             nn.ReLU(inplace=True),
             nn.Linear(in_features=512, out_features=256),
             nn.ReLU(inplace=True)
@@ -54,13 +58,25 @@ class PolicyNet(torch.nn.Module):
         part_dist = self.policy_part(feature_stem)
         ori_dist = self.policy_orientation(feature_stem)
         
-        return part_dist, ori_dist, batch_dist
+        # filter out infeasible parts and batches
+        part_mask = 1 - self.env.get_unavailable_parts_mask().float()
+        batch_mask = 1 - (self.env.solution.get_current_view(show=True).reshape(-1) >= 1).float()
+        print(part_dist.shape)
+        
+        # TODO: Fix this
+        masked_part_dist = torch.nn.functional.softmax(part_dist, dim=-1) * part_mask.reshape(1, -1).to(self.device)
+        masked_part_dist = masked_part_dist / masked_part_dist.sum(-1, keepdim=True)
+        # masked_batch_dist = torch.nn.functional.softmax(batch_dist, dim=-1) * batch_mask.reshape(1, -1).to(self.device)
+        # masked_batch_dist = masked_batch_dist / masked_batch_dist.sum(-1, keepdim=True)
+        masked_batch_dist = batch_dist
+        
+        return masked_part_dist, ori_dist, masked_batch_dist
         
 class ValueNet(torch.nn.Module):
     def __init__(self, state_dim, hidden_dim):
         super().__init__()
-        self.policy = nn.Sequential(
-            nn.Linear(in_features=923, out_features=512),
+        self.value = nn.Sequential(
+            nn.Linear(in_features=683, out_features=512),
             nn.ReLU(inplace=True),
             nn.Linear(in_features=512, out_features=256),
             nn.ReLU(inplace=True),
@@ -68,16 +84,19 @@ class ValueNet(torch.nn.Module):
         )
         
     def forward(self, x):
-        x = F.relu(self.fc1(x))
-        return self.fc2(x)
+        return self.value(x)
 
 class PPO:
     """PPO CLIP Version"""
     def __init__(self, state_dim, hidden_dim, action_dim, actor_lr, critic_lr,
                  lmbda, epochs, eps, gamma, device,
-                 max_part_type, max_ori_num, max_batch_num):
+                 max_part_type, max_ori_num, max_batch_num, env: SingleSLMEnvParallel1D):
+        self.env = env 
+        self.device = device
+        self.max_ori_num = max_ori_num
+        
         self.actor: Callable[[torch.Tensor], Tuple[torch.Tensor]] \
-            = PolicyNet(state_dim, hidden_dim, action_dim, max_part_type, max_ori_num, max_batch_num).to(device)
+            = PolicyNet(state_dim, hidden_dim, action_dim, max_part_type, max_ori_num, max_batch_num, env, device).to(device)
         self.critic: Callable[[torch.Tensor], torch.Tensor] \
             = ValueNet(state_dim, hidden_dim).to(device)
         
@@ -95,16 +114,33 @@ class PPO:
     
     def take_action(self, state: torch.Tensor):
         state = state.reshape(1, -1)
-        dists = self.actor(state)
-        action_dists = list(map(lambda x:torch.distributions.Categorical(x), dists))
-        actions = list(map(lambda x:x.sample(), action_dists))
-        return [a.item() for a in actions]
+        part_dist, ori_dist, batch_dist = self.actor(state)
+        action_dists = list(map(lambda x:torch.distributions.Categorical(x), [part_dist, batch_dist]))
+        part, batch = list(map(lambda x:x.sample(), action_dists))
+       
+        # mask out infeasible orientations
+        # The line `ori_num = len(self.env.slm_metadata.parts[int(part.item())].build_params)` is
+        # calculating the number of build parameters associated with a specific part selected by the
+        # agent during the action selection process. Let's break down the purpose of this line:
+        # The code snippet `ori_num = len(self.env.slm_metadata.parts[int(part.item())].build_params)`
+        # is calculating the number of build parameters for a specific part in the environment. Let's
+        # break it down:
+        ori_num = len(self.env.slm_metadata.parts[int(part.item())].build_params)
+        ori_mask = 1 - torch.tensor(
+            [(0 if i < ori_num else 1) for i in range(self.max_ori_num)]
+        )
+        masked_ori_dist = torch.nn.functional.softmax(ori_dist, dim=-1) * ori_mask.reshape(1, -1).to(self.device)
+        masked_ori_dist = masked_ori_dist / masked_ori_dist.sum()
+        
+        ori = torch.distributions.Categorical(masked_ori_dist).sample()
+        
+        return [part.item(), ori.item(), batch.item()]
     
     def update(self, transition_dict):
-        states = torch.tensor([transition_dict["states"]], dtype=torch.float).to(self.device)
+        states = torch.stack(transition_dict["states"], dim=0).to(self.device)
         actions = [torch.tensor([i]).view(-1, 1).to(self.device) for i in transition_dict["actions"]]
         rewards = torch.tensor([transition_dict["rewards"]], dtype=torch.float).to(self.device)
-        next_states = torch.tensor([transition_dict["next_states"]], dtype=torch.float).to(self.device)
+        next_states = torch.stack(transition_dict["next_states"], dim=0).to(self.device)
         dones = torch.tensor([transition_dict["dones"]], dtype=torch.float).to(self.device)
         
         rewards = (rewards + 8.0) / 8.0
@@ -112,20 +148,24 @@ class PPO:
         td_delta = rewards - self.critic(states)
         advantage = compute_advantage(self.gamma, self.lmbda, td_delta.cpu()).to(self.device)
         
-        dists = self.actor(state)
+        dists = self.actor(states)
         old_log_probs_ls =  list(map(
             lambda x: torch.log(x[0].gather(1, x[1])).detach(),
             zip(dists, actions)
         ))
         
         for _ in range(self.epochs):
-            dists = self.actor(state)
-            log_probs_ls =  list(map(
+            
+            # TODO: Split the batch performation in to individual steps
+            # TODO: As the mask may change
+            
+            dists = self.actor(states)
+            log_probs_ls = list(map(
                 lambda x: torch.log(x[0].gather(1, x[1])).detach(),
                 zip(dists, actions)
             ))
             
-            ratio_ls = [torch.exp(lp, olp) for (lp, olp) in zip(log_probs_ls, old_log_probs_ls)]
+            ratio_ls = [torch.exp(lp - olp) for (lp, olp) in zip(log_probs_ls, old_log_probs_ls)]
             surr1 = sum(map(lambda x:x*advantage, ratio_ls))
             surr2 = sum(map(lambda x:torch.clamp(x, 1 - self.eps, 1 + self.eps) * advantage,
                             ratio_ls))
@@ -162,7 +202,7 @@ if __name__ == "__main__":
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
     
-    agent = PPO(state_dim, hidden_dim, action_dim, actor_lr, critic_lr, lmbda, epochs, eps, gamma, device)
+    agent = PPO(state_dim, hidden_dim, action_dim, actor_lr, critic_lr, lmbda, epochs, eps, gamma, device, env)
     
     return_list = []
     for i in range(epochs):
@@ -194,6 +234,7 @@ if __name__ == "__main__":
                     
                     state = next_state
                     episode_return += reward
+                    
                 return_list.append(episode_return)
                 agent.update(transition_dict)
                 
