@@ -218,30 +218,30 @@ if __name__ == "__main__":
     
     wandb.init(
         project="slm2d-dqn",
-        action_type="part-orientation, tuple",
-        criterion="energy-diff",
         config={
-            "lr": 2e-6,
+            "action_type": "part-orientation, tuple",
+            "criterion": "energy-diff",
+            "lr": 2e-5,
             "num_episodes": 10000,
             "hidden_dim": 128,
             "gamma": 1.00,
             "epsilon": 0.01,
             "target_update": 10,
-            "buffer_size": 50000,
+            "buffer_size": 20000,
             "minimal_size": 600,
             "batch_size": 16,
             "device": "cuda",
+            "time": str(datetime.datetime.now())
         },
-        time=str(datetime.datetime.now())
     )
     
-    lr = 2e-6
+    lr = 2e-5
     num_episodes = 10000
     hidden_dim = 128
     gamma = 1.00
     epsilon = 0.01 # 0.05
     target_update = 10
-    buffer_size = 50000
+    buffer_size = 20000
     minimal_size = 600
     batch_size = 16
     device = torch.device("cuda")
@@ -301,9 +301,9 @@ if __name__ == "__main__":
 
                 instances_dict[instance] = 1 if instance not in instances_dict else instances_dict[instance]+1
                 
-                wandb.log({f"{instance}": env.last_criterion}, step=instances_dict.get(instance))
                 wandb.log({"Avg Episode Return": moving_avg_return, 
-                           "Avg Energy Return": moving_ene_return}, step=episode_id)
+                           "Avg Energy Return": moving_ene_return,
+                           f"{instance}": env.last_criterion}, step=episode_id)
                 
                 pbar.update(1)
     

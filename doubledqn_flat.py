@@ -201,9 +201,9 @@ if __name__ == "__main__":
     
     wandb.init(
         project="slmflat-doubledqn",
-        actions_type="part-orientation-batch, tensor",
-        criterion="energy-diff",
         config={
+            "actions_type": "part-orientation-batch, tensor",
+            "criterion": "energy-diff",
             "lr": 5e-5,
             "num_episodes": 10000,
             "hidden_dim": 128,
@@ -216,9 +216,9 @@ if __name__ == "__main__":
             "device": "cuda",
             "max_part_type": 20,
             "max_orientation_num": 7,
-            "max_batch_num": 20
+            "max_batch_num": 20,
+            "time": datetime.datetime.now().strftime(r"%Y-%m-%d %H:%M:%S")
         },
-        time=datetime.datetime.now().strftime(r"%Y-%m-%d %H:%M:%S")
     )
     
     lr = 5e-5
@@ -296,8 +296,9 @@ if __name__ == "__main__":
 
                 instances_dict[instance] = 1 if instance not in instances_dict else instances_dict[instance]+1
                 
-                wandb.log({f"{instance}": env.last_criterion}, step=instances_dict.get(instance))
-                wandb.log({"Avg Episode Return": moving_avg_return, "Avg Energy Return": moving_ene_return}, step=episode_id)
+                wandb.log({"Avg Episode Return": moving_avg_return, 
+                           "Avg Energy Return": moving_ene_return,
+                           f"{instance}": env.last_criterion}, step=episode_id)
                 
                 pbar.update(1)
     

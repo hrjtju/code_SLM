@@ -21,9 +21,9 @@ import torch.nn as nn
 from torch import Tensor
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
-from tensorboardX import SummaryWriter
+import wandb
 
-from slm_model.slm_env import SingleSLMEnv, SingleSLMEnvParallel1D
+from slm_model.slm_env import SingleSLMEnv
 
 USE_PPO = False
 
@@ -210,6 +210,25 @@ if __name__ == "__main__":
     
     warnings.filterwarnings("ignore")
     
+    wandb.init(
+        project="slm2d-doubledqn",
+        config={
+            "action_type": "part-orientation, tuple",
+            "criterion": "energy-diff",
+            "lr": 2e-5,
+            "num_episodes": 10000,
+            "hidden_dim": 128,
+            "gamma": 1.00,
+            "epsilon": 0.01,
+            "target_update": 5,
+            "buffer_size": 20000,
+            "minimal_size": 600,
+            "batch_size": 16,
+            "device": "cuda",
+            "time": str(datetime.datetime.now())
+        }
+    )
+    
     lr = 2e-5
     num_episodes = 10000
     hidden_dim = 128
@@ -218,7 +237,7 @@ if __name__ == "__main__":
     target_update = 5
     buffer_size = 20000
     minimal_size = 600
-    batch_size = 8
+    batch_size = 16
     device = torch.device("cuda")
     
     replay_buffer = ReplayBuffer(buffer_size)
@@ -227,12 +246,12 @@ if __name__ == "__main__":
     
     now_str = str(datetime.datetime.now()).split('.')[0].replace(':', '_').replace(' ', '_')
     os.mkdir(f'./tf-logs/{agent.__class__.__name__}_{now_str}')
-    writer = SummaryWriter(f'./tf-logs/{agent.__class__.__name__}_{now_str}')
     
     return_list = []
+    energy_list = []
     instances_dict = {}
     
-    env = SingleSLMEnvParallel1D(in_path="./instances_generated_json/", phase="Train")
+    env = SingleSLMEnv(in_path="./instances_generated_json/", phase="Train", device=device)
     env_name = env.name
     
     for i in range(10):
@@ -266,9 +285,11 @@ if __name__ == "__main__":
                         )
                         
                 return_list.append(episode_return)
+                energy_list.append(env.last_criterion)
 
                 episode_id = int(num_episodes / 10 * i + i_episode + 1)
                 moving_avg_return = np.mean(return_list[-100:] if len(return_list) > 100 else np.mean(return_list))
+                moving_ene_return = np.mean(energy_list[-200:] if len(energy_list) > 200 else np.mean(energy_list))
                 
                 pbar.set_postfix({
                     "episode": f"{episode_id:4d}",
@@ -277,8 +298,11 @@ if __name__ == "__main__":
 
                 instances_dict[instance] = 1 if instance not in instances_dict else instances_dict[instance]+1
                 
-                writer.add_scalar("Avg Episode Return", moving_avg_return, episode_id)
-                # writer.add_scalar(f"{instance}", scalar_value=episode_return, global_step=instances_dict.get(instance))
+                wandb.log({"Avg Episode Return": moving_avg_return, 
+                           "Avg Energy Return": moving_ene_return,
+                           f"{instance}": env.last_criterion}, step=episode_id)
                 
                 pbar.update(1)
-                # asd
+                
+    now_str = datetime.datetime.now().strftime(r"%Y-%m-%d_%H-%M-%S")
+    torch.save(agent.q_net.state_dict(), f"./model_params/{env.__class__.__name__}_{agent.__class__.__name__}_{now_str}.pt")
