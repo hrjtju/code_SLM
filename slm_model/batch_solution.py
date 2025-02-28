@@ -340,16 +340,16 @@ class BatchParallel1D(Batch):
             try: 
                 proj_area = part.get_proj_area(orientation)
             except IndexError:
-                return None, False
+                return None, False, 0
             
             if proj_area > self.get_rest_area():
-                return None, False
+                return None, False, 0
             else:
                 self.parts_info.append(part.get_part_info(orientation))
                 # Update the current view
                 self.bin_view = self.get_current_view()
                 
-                return self.bin_view, True
+                return self.bin_view, True, 0
         else:
             proj_area = part.get_proj_area(orientation)
             rest_area = self.get_rest_area()
