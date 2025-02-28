@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from slm_model.slm_env import SingleSLMEnvParallel1D
 
+USE_PPO = True
+
 def compute_advantage(gamma, lmbda, td_delta):
     td_delta = td_delta.detach().numpy()
     advantage_list = []
