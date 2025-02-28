@@ -187,7 +187,7 @@ class SingleSLMEnv(Env):
     
     def step(
         self, 
-        action: Tensor
+        action: Tuple[Tensor, Tensor]   
         ) -> Tuple[Tensor, float, bool, bool, str]:
         """
         Update the Env according to the action.
