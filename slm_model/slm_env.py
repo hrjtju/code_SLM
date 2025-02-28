@@ -12,6 +12,7 @@ from slm_model.batch_solution import Solution, SolutionParallel1D
 
 #! Add Unit Test
 
+USE_PPO = False 
 
 # only supports assigning a part to a batch
 # and the 2D bin packing algorithm puts the part into a target position
@@ -444,47 +445,49 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         terminated, truncated = False, False
         info, reward = None, 0        
         
-        part, ori, batch = actions
+        if isinstance(actions, torch.Tensor):
+            part, ori, batch = self.slice_action(actions)
+        else:
+            part, ori, batch = actions
         
         penalty = 0
         success = False
         
-        #! If NOT Using PPO:
-        # for part_id in torch.argsort(part_dist, descending=True):
-        #     if success:
-        #         break
-        #     if self.transform_state(self.curr_state)[-1][part_id, 0] < 1:
-        #         continue
-        #     for ori_id in torch.argsort(ori_dist, descending=True):
-        #         if success:
-        #             break
-        #         for batch_id in torch.argsort(batch_dist, descending=True):
-        #             new_view, success, penalty_tmp = self.solution.add_part(part=self.slm_metadata.parts[part_id],
-        #                                                     orientation=ori_id,
-        #                                                     idx=batch_id)
-        #             penalty += penalty_tmp
-                    
-        #             if success:
-        #                 self.update_state(view=new_view, part_id=part_id)   
+        if not USE_PPO:
+            for part_id in torch.argsort(part, descending=True):
+                if success:
+                    break
+                if self.transform_state(self.curr_state)[-1][part_id, 0] < 1:
+                    continue
+                for ori_id in torch.argsort(ori, descending=True):
+                    if success:
+                        break
+                    for batch_id in torch.argsort(batch, descending=True):
+                        new_view, success, penalty_tmp = self.solution.add_part(part=self.slm_metadata.parts[part_id],
+                                                                orientation=ori_id,
+                                                                idx=batch_id)
+                        penalty += penalty_tmp
                         
-        #                 # If all parts are allocated, terminate this episode.
-        #                 # 
-        #                 if self.done():
-        #                     terminated = True
-        #                 break
+                        if success:
+                            self.update_state(view=new_view, part_id=part_id)   
+                            
+                            # If all parts are allocated, terminate this episode.
+                            # 
+                            if self.done():
+                                terminated = True
+                            break
+        else:
+            new_view, success, penalty_tmp = self.solution.add_part(part=self.slm_metadata.parts[part], 
+                                                                    orientation=ori, 
+                                                                    idx=batch,
+                                                                    hard=False)
         
-        #! If Using PPO:
-        new_view, success, penalty_tmp = self.solution.add_part(part=self.slm_metadata.parts[part], 
-                                                                orientation=ori, 
-                                                                idx=batch,
-                                                                hard=False)
-        
-        if success:
-            self.update_state(new_view, part)
-            if self.done():
-                terminated = True
-                
-        penalty_tmp = penalty_tmp * 10 
+            if success:
+                self.update_state(new_view, part)
+                if self.done():
+                    terminated = True
+                    
+            penalty_tmp = penalty_tmp * 10 
         
         criterion = self.solution.calculate_energy()
         reward = self.last_criterion - criterion - penalty
