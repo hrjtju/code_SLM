@@ -51,4 +51,5 @@ readme.pdf
 
 # Cpython files 
 __pycache__/*
-**.pyc
+slm_model/__pycache__/*
+rl_algorithms/__pycache__/*
