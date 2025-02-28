@@ -23,7 +23,9 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from tensorboardX import SummaryWriter
 
-from slm_env import SingleSLMEnv, SingleSLMEnvParallel1D
+from slm_model.slm_env import SingleSLMEnv, SingleSLMEnvParallel1D
+
+USE_PPO = False
 
 def to_device(ls, device):
     return [torch.tensor(x, device=device) for x in ls] if isinstance(ls, Iterable) else torch.tensor(ls, device=device)

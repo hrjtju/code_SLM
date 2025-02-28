@@ -6,7 +6,7 @@ from tqdm import tqdm
 import numpy as np
 
 from rl_algorithms.rl_utils import ReplayBuffer, to_device
-from rl_algorithms.doubledqn_flat import DoubleDQN
+from doubledqn_flat import DoubleDQN
 from rl_algorithms.ppo_test_flat import PPO
 from slm_model.slm_env import SingleSLMEnv, SingleSLMEnvParallel1D
 
