@@ -51,3 +51,4 @@ readme.pdf
 
 # Cpython files 
 __pycache__/*
+**.pyc
