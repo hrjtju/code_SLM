@@ -302,4 +302,4 @@ if __name__ == "__main__":
                 pbar.update(1)
     
     now_str = datetime.datetime.now().strftime(r"%Y-%m-%d_%H-%M-%S")
-    torch.save(agent.q_net.state_dict(), f"./model_params/{agent.__class__.__name__}_{now_str}.pt")
+    torch.save(agent.q_net.state_dict(), f"./model_params/{env.__class__.__name__}_{agent.__class__.__name__}_{now_str}.pt")
