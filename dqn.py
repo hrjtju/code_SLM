@@ -176,6 +176,7 @@ class DQN:
                 torch.randn(self.max_part).abs() + 0.01, torch.randn(self.max_ori).abs() + 0.01
                 )
             action = tuple(map(lambda x:x.reshape(1, -1), action))
+            self.epsilon = max(0.05, self.epsilon * 0.99999)
         else:
             action = self.q_net(state)
         
@@ -212,7 +213,7 @@ class DQN:
 if __name__ == "__main__":
     now_str = str(datetime.datetime.now()).split('.')[0].replace(':', '_').replace(' ', '_')
     
-    os.mkdir(f'./tf-logs/{now_str}')
+    # os.mkdir(f'./tf-logs/{now_str}')
     
     warnings.filterwarnings("ignore")
     
@@ -221,29 +222,33 @@ if __name__ == "__main__":
         config={
             "action_type": "part-orientation, tuple",
             "criterion": "energy-diff",
-            "lr": 2e-5,
-            "num_episodes": 10000,
+            "lr": 5e-3,
+            "num_episodes": 50000,
             "hidden_dim": 128,
             "gamma": 1.00,
-            "epsilon": 0.01,
-            "target_update": 10,
-            "buffer_size": 20000,
+            "epsilon_start": 0.5,
+            "epsilon_rate": 0.999,
+            "target_update": 5,
+            "buffer_size": 50000,
             "minimal_size": 600,
-            "batch_size": 16,
+            "batch_size": 64,
             "device": "cuda",
+            "max_part_type": 20,
+            "max_orientation_num": 7,
+            "max_batch_num": 20,
             "time": str(datetime.datetime.now())
         },
     )
     
-    lr = 2e-5
-    num_episodes = 10000
+    lr = 5e-3
+    num_episodes = 50000
     hidden_dim = 128
     gamma = 1.00
-    epsilon = 0.01 # 0.05
-    target_update = 10
-    buffer_size = 20000
+    epsilon = 0.5 # 0.05
+    target_update = 5
+    buffer_size = 50000
     minimal_size = 600
-    batch_size = 16
+    batch_size = 64
     device = torch.device("cuda")
     
     replay_buffer = ReplayBuffer(buffer_size)

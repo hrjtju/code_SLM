@@ -169,6 +169,7 @@ class DoubleDQN:
                 torch.randn(self.max_part).abs() + 0.01, torch.randn(self.max_ori).abs() + 0.01
                 )
             action = tuple(map(lambda x:x.reshape(1, -1), action))
+            self.epsilon = max(0.05, self.epsilon * 0.99999)
         else:
             action = self.q_net(state)
         
@@ -215,29 +216,33 @@ if __name__ == "__main__":
         config={
             "action_type": "part-orientation, tuple",
             "criterion": "energy-diff",
-            "lr": 2e-5,
-            "num_episodes": 10000,
+            "lr": 5e-3,
+            "num_episodes": 50000,
             "hidden_dim": 128,
             "gamma": 1.00,
-            "epsilon": 0.01,
+            "epsilon_start": 0.5,
+            "epsilon_rate": 0.999,
             "target_update": 5,
-            "buffer_size": 20000,
+            "buffer_size": 50000,
             "minimal_size": 600,
-            "batch_size": 16,
+            "batch_size": 64,
             "device": "cuda",
+            "max_part_type": 20,
+            "max_orientation_num": 7,
+            "max_batch_num": 20,
             "time": str(datetime.datetime.now())
         }
     )
     
-    lr = 2e-5
-    num_episodes = 10000
+    lr = 5e-3
+    num_episodes = 50000
     hidden_dim = 128
     gamma = 1.00
-    epsilon = 0.01 # 0.05
+    epsilon = 0.5 # 0.05
     target_update = 5
-    buffer_size = 20000
+    buffer_size = 50000
     minimal_size = 600
-    batch_size = 16
+    batch_size = 64
     device = torch.device("cuda")
     
     replay_buffer = ReplayBuffer(buffer_size)
@@ -245,13 +250,13 @@ if __name__ == "__main__":
     agent = DoubleDQN(lr, gamma, epsilon, target_update, device)
     
     now_str = str(datetime.datetime.now()).split('.')[0].replace(':', '_').replace(' ', '_')
-    os.mkdir(f'./tf-logs/{agent.__class__.__name__}_{now_str}')
+    # os.mkdir(f'./tf-logs/{agent.__class__.__name__}_{now_str}')
     
     return_list = []
     energy_list = []
     instances_dict = {}
     
-    env = SingleSLMEnv(in_path="./instances_generated_json/", phase="Train", device=device)
+    env = SingleSLMEnv(in_path="./instances_json/", phase="Train", device=device)
     env_name = env.name
     
     for i in range(10):

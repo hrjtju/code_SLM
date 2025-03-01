@@ -120,13 +120,6 @@ class PPO:
         action_dists = list(map(lambda x:torch.distributions.Categorical(x), [part_dist, batch_dist]))
         part, batch = list(map(lambda x:x.sample(), action_dists))
        
-        # mask out infeasible orientations
-        # The line `ori_num = len(self.env.slm_metadata.parts[int(part.item())].build_params)` is
-        # calculating the number of build parameters associated with a specific part selected by the
-        # agent during the action selection process. Let's break down the purpose of this line:
-        # The code snippet `ori_num = len(self.env.slm_metadata.parts[int(part.item())].build_params)`
-        # is calculating the number of build parameters for a specific part in the environment. Let's
-        # break it down:
         ori_num = len(self.env.slm_metadata.parts[int(part.item())].build_params)
         ori_mask = 1 - torch.tensor(
             [(0 if i < ori_num else 1) for i in range(self.max_ori_num)]

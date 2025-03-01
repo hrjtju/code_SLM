@@ -11,7 +11,6 @@ from functools import reduce
 import os
 import random
 import collections
-from networkx import project
 from sympy import true
 import torch.utils
 from tqdm import tqdm
@@ -131,8 +130,10 @@ class DoubleDQN:
             action = (
                 torch.randn(self.max_part+self.max_ori+self.max_batch).abs() + 0.01
                 )
+            self.epsilon = max(0.05, self.epsilon * 0.99999)
         else:
             action = self.q_net(state)
+
         
         return action
 
@@ -204,15 +205,16 @@ if __name__ == "__main__":
         config={
             "actions_type": "part-orientation-batch, tensor",
             "criterion": "energy-diff",
-            "lr": 5e-5,
-            "num_episodes": 10000,
+            "lr": 5e-3,
+            "num_episodes": 50000,
             "hidden_dim": 128,
             "gamma": 1.00,
-            "epsilon": 0.05,
+            "epsilon_start": 0.5,
+            "epsilon_rate": 0.999,
             "target_update": 5,
-            "buffer_size": 20000,
+            "buffer_size": 50000,
             "minimal_size": 600,
-            "batch_size": 16,
+            "batch_size": 64,
             "device": "cuda",
             "max_part_type": 20,
             "max_orientation_num": 7,
@@ -221,15 +223,15 @@ if __name__ == "__main__":
         },
     )
     
-    lr = 5e-5
-    num_episodes = 10000
+    lr = 5e-3
+    num_episodes = 50000
     hidden_dim = 128
     gamma = 1.00
-    epsilon = 0.05 # 0.05
+    epsilon = 0.5 # 0.05
     target_update = 5
-    buffer_size = 20000
+    buffer_size = 50000
     minimal_size = 600
-    batch_size = 16
+    batch_size = 64
     device = torch.device("cuda")
     
     MAX_PART_TYPE = 20
@@ -298,7 +300,8 @@ if __name__ == "__main__":
                 
                 wandb.log({"Avg Episode Return": moving_avg_return, 
                            "Avg Energy Return": moving_ene_return,
-                           f"{instance}": env.last_criterion}, step=episode_id)
+                           f"{instance}": env.last_criterion,
+                           "epsilon": agent.epsilon}, step=episode_id)
                 
                 pbar.update(1)
     
