@@ -33,7 +33,9 @@ MAX_BATCH_NUM = 20
 replay_buffer = ReplayBuffer(buffer_size)
 
 env = SingleSLMEnvParallel1D(in_path="./instances_json/", phase="Train",
-                             max_part_type=MAX_PART_TYPE, max_batch_num=MAX_BATCH_NUM, max_orientation_num=MAX_ORIENTATION_NUM)
+                             max_part_type=MAX_PART_TYPE, max_batch_num=MAX_BATCH_NUM, max_orientation_num=MAX_ORIENTATION_NUM, 
+                             seed=25, 
+                             ppo=True)
 env_name = env.name
 
 # agent = DoubleDQN(lr, gamma, epsilon, target_update, device, 

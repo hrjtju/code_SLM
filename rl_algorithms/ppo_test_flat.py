@@ -11,8 +11,6 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from slm_model.slm_env import SingleSLMEnvParallel1D
 
-USE_PPO = True
-
 def compute_advantage(gamma, lmbda, td_delta):
     td_delta = td_delta.detach().numpy()
     advantage_list = []
@@ -35,6 +33,7 @@ class PolicyNet(torch.nn.Module):
             nn.Linear(in_features=512, out_features=256),
             nn.ReLU(inplace=True)
         )
+        
         self.policy_batch = nn.Sequential(
             nn.Linear(256, 128),
             nn.LeakyReLU(),
@@ -68,11 +67,8 @@ class PolicyNet(torch.nn.Module):
         # TODO: Fix this
         masked_part_dist = torch.nn.functional.softmax(part_dist, dim=-1) * part_mask.reshape(1, -1).to(self.device)
         masked_part_dist = masked_part_dist / masked_part_dist.sum(-1, keepdim=True)
-        # masked_batch_dist = torch.nn.functional.softmax(batch_dist, dim=-1) * batch_mask.reshape(1, -1).to(self.device)
-        # masked_batch_dist = masked_batch_dist / masked_batch_dist.sum(-1, keepdim=True)
-        masked_batch_dist = batch_dist
         
-        return masked_part_dist, ori_dist, masked_batch_dist
+        return masked_part_dist, ori_dist, batch_dist
         
 class ValueNet(torch.nn.Module):
     def __init__(self, state_dim, hidden_dim):
@@ -189,9 +185,14 @@ if __name__ == "__main__":
     epochs = 100
     eps = 0.2
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        
+    MAX_PART_TYPE = 20
+    MAX_ORIENTATION_NUM = 7
+    MAX_BATCH_NUM = 20
     
-    env_name ="Pendulum-v1"
-    env: gym.Env = gym.make(env_name)
+    env = SingleSLMEnvParallel1D(in_path="./instances_json/", phase="Train",
+                                 max_part_type=MAX_PART_TYPE, max_batch_num=MAX_BATCH_NUM, max_orientation_num=MAX_ORIENTATION_NUM, ppo=True)
+    env_name = env.name
     
     torch.manual_seed(0)
     state_dim = env.observation_space.shape[0]

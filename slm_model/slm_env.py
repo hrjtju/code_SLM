@@ -12,8 +12,6 @@ from slm_model.batch_solution import Solution, SolutionParallel1D
 
 #! Add Unit Test
 
-USE_PPO = False 
-
 # only supports assigning a part to a batch
 # and the 2D bin packing algorithm puts the part into a target position
 class SingleSLMEnv(Env):
@@ -30,6 +28,7 @@ class SingleSLMEnv(Env):
                  max_part_type: int = 20,
                  max_orientation_num: int = 7,
                  seed: float = 0,
+                 ppo: bool = False,
                  **kwargs
                  ):
         """Initialise a SLM Env.
@@ -298,11 +297,14 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
                  max_orientation_num: int = 7,
                  max_batch_num: int = 20,
                  seed: float = 0,
+                 ppo: bool = False,
                  **kwargs
                  ):
         
         random.seed(seed)
         
+        # self.ppo = ppo
+        print(f"{self.ppo=}")
         self.name = "SingleSLMEnvParallel1D"
         self.phase = phase
         self.in_path = in_path
@@ -393,7 +395,8 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
                           max_part_type=self.max_part_type,
                           max_orientation_num=self.max_orientation_num,
                           max_batch_num=self.max_batch_num,
-                          seed=random.random()
+                          seed=random.random(),
+                          ppo=self.ppo
                           )
         elif self.phase == "Test":
             exit(0)
@@ -453,7 +456,9 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         penalty = 0
         success = False
         
-        if not USE_PPO:
+        # print(f"{self.ppo=}")
+        
+        if not self.ppo:
             for part_id in torch.argsort(part, descending=True):
                 if success:
                     break
