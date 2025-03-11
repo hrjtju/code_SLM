@@ -1,9 +1,10 @@
 from importlib.metadata import distributions
 from re import M
-from typing import Callable, Tuple
+from typing import Callable, Tuple, List
 import gymnasium as gym
 from pandas import Categorical
 import torch
+from torch import Tensor
 import torch.nn as nn 
 import torch.nn.functional as F
 import numpy as np
@@ -11,7 +12,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from slm_model.slm_env import SingleSLMEnvParallel1D
 
-def compute_advantage(gamma, lmbda, td_delta):
+def compute_advantage(gamma: float, lmbda: float, td_delta: Tensor) -> Tensor:
     td_delta = td_delta.detach().numpy()
     advantage_list = []
     advantage = 0.0
@@ -20,6 +21,30 @@ def compute_advantage(gamma, lmbda, td_delta):
         advantage_list.append(advantage)
     advantage_list.reverse()
     return torch.tensor(advantage_list, dtype=torch.float)
+
+class Transition:
+    def __init__(self) -> None:
+        self.states: List[Tensor] = []
+        self.actions: List[List[int]] = []
+        self.next_states: List[Tensor] = []
+        self.rewards: List[float] = []
+        self.dones: List[bool] = []
+    
+    def append_history(self, state, action, next_state, reward, done) -> None:
+        self.states.append(state)
+        self.actions.append(action)
+        self.next_states.append(next_state)
+        self.rewards.append(reward)
+        self.dones.append(done)
+    
+    def readout(self) -> Tuple[Tensor, List[Tensor], Tensor, Tensor, Tensor]:
+        states_ = torch.stack(self.states, dim=0).to(self.device)
+        actions_ = [torch.tensor([i]).view(-1, 1).to(self.device) for i in self.actions]
+        rewards_ = torch.tensor([self.rewards], dtype=torch.float).to(self.device)
+        next_states_ = torch.stack(self.next_states, dim=0).to(self.device)
+        dones_ = torch.tensor([self.dones], dtype=torch.float).to(self.device)
+        
+        return states_, actions_, rewards_, next_states_, dones_
 
 class PolicyNet(torch.nn.Module):
     def __init__(self, state_dim, hidden_dim, action_dim, max_part_type, max_ori_num, max_batch_num, env: SingleSLMEnvParallel1D, device):
@@ -127,12 +152,14 @@ class PPO:
         
         return [part.item(), ori.item(), batch.item()]
     
-    def update(self, transition_dict):
-        states = torch.stack(transition_dict["states"], dim=0).to(self.device)
-        actions = [torch.tensor([i]).view(-1, 1).to(self.device) for i in transition_dict["actions"]]
-        rewards = torch.tensor([transition_dict["rewards"]], dtype=torch.float).to(self.device)
-        next_states = torch.stack(transition_dict["next_states"], dim=0).to(self.device)
-        dones = torch.tensor([transition_dict["dones"]], dtype=torch.float).to(self.device)
+    def update(self, transition: Transition):
+        # states = torch.stack(transition.states, dim=0).to(self.device)
+        # actions = [torch.tensor([i]).view(-1, 1).to(self.device) for i in transition.actions]
+        # rewards = torch.tensor([transition.rewards], dtype=torch.float).to(self.device)
+        # next_states = torch.stack(transition.next_states, dim=0).to(self.device)
+        # dones = torch.tensor([transition.dones], dtype=torch.float).to(self.device)
+        
+        states, actions, rewards, next_states, dones = transition.readout()
         
         rewards = (rewards + 8.0) / 8.0
         td_target = rewards + self.gamma * self.critic(next_states) * (1 - dones)
@@ -206,13 +233,7 @@ if __name__ == "__main__":
             for i_episode in range(int(num_episodes / epochs)):
                 episode_return = 0
                 
-                transition_dict = {
-                    "states": [],
-                    "actions": [],
-                    "next_states": [],
-                    "rewards": [],
-                    "dones": []
-                }
+                transition = Transition()
                 
                 state, _ = env.reset()
                 done = False 
@@ -222,17 +243,13 @@ if __name__ == "__main__":
                     next_state, reward, terminated, truncated, *_ = env.step(action)
                     done = terminated or truncated
                     
-                    transition_dict["states"].append(state)
-                    transition_dict["actions"].append(action)
-                    transition_dict["next_states"].append(next_state)
-                    transition_dict["rewards"].append(reward)
-                    transition_dict["dones"].append(done)
+                    transition.append_history(state, action, next_state, reward, done)
                     
                     state = next_state
                     episode_return += reward
                     
                 return_list.append(episode_return)
-                agent.update(transition_dict)
+                agent.update(transition)
                 
                 if (i_episode + 1) % 10 == 0:
                     pbar.set_postfix({

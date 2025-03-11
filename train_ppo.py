@@ -7,7 +7,7 @@ import numpy as np
 
 from rl_algorithms.rl_utils import ReplayBuffer, to_device
 from doubledqn_flat import DoubleDQN
-from rl_algorithms.ppo_test_flat import PPO
+from rl_algorithms.ppo_test_flat import PPO, Transition
 from slm_model.slm_env import SingleSLMEnv, SingleSLMEnvParallel1D
 
 from tensorboardX import SummaryWriter
@@ -69,13 +69,7 @@ for i in range(epochs):
         for i_episode in range(int(num_episodes//epochs)):
             episode_return = 0
             
-            transition_dict = {
-                    "states": [],
-                    "actions": [],
-                    "next_states": [],
-                    "rewards": [],
-                    "dones": []
-            }
+            transition = Transition()
             
             state, instance = env.reset()
             done = False
@@ -86,18 +80,15 @@ for i in range(epochs):
                 next_state, reward, terminate, truncate, _ = env.step(action)
                 done = terminate or truncate
                 
-                transition_dict["states"].append(state)
-                transition_dict["actions"].append(action)
-                transition_dict["next_states"].append(next_state)
-                transition_dict["rewards"].append(reward)
-                transition_dict["dones"].append(done)
+                
+                transition.append_history(state, action, next_state, reward, done)
                 
                 state = next_state
                 episode_return += reward
                 
             return_list.append(episode_return)
             energy_list.append(env.last_criterion)
-            agent.update(transition_dict)
+            agent.update(transition)
 
             episode_id = int(num_episodes / 10 * i + i_episode + 1)
             moving_avg_return = np.mean(return_list[-200:] if len(return_list) > 200 else np.mean(return_list))

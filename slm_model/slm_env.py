@@ -303,7 +303,7 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         
         random.seed(seed)
         
-        # self.ppo = ppo
+        self.ppo = ppo
         print(f"{self.ppo=}")
         self.name = "SingleSLMEnvParallel1D"
         self.phase = phase
@@ -354,9 +354,30 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
                                             shape=self.curr_state.shape)
         self.action_space = spaces.Box(low=0, high=float("inf"), shape=(max_batch_num+max_part_type+max_orientation_num, ))
         
+        self.mask_tensor: Tensor = None
+        
+        self.init_mask()
+        
         # assert torch.equal(self.curr_state, self.transform_state(self.transform_state(self.curr_state)))
         # assert all(torch.equal(a, b) for (a, b) in zip(self.transform_state(self.curr_state), 
         #                    self.transform_state(self.transform_state(self.transform_state(self.curr_state)))))
+    
+    def init_mask(self):
+        
+        # [n, o, b]
+        self.mask_tensor = torch.ones(self.max_part_type, self.max_orientation_num, self.max_batch_num, dtype=torch.bool)
+        
+        # [n, o]
+        feasible_orientations = self.slm_metadata.mask_matrix()
+        self.mask_tensor = self.mask_tensor * feasible_orientations[..., None]
+        
+        # TODO: 
+        ...
+    
+    def update_mask(self):
+        
+        ...
+    
     def get_unavailable_parts_mask(self):
         """
         get unavailable mask of the part types. The indices of the output vector is 1 iff
