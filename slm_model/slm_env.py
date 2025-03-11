@@ -355,6 +355,8 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         self.action_space = spaces.Box(low=0, high=float("inf"), shape=(max_batch_num+max_part_type+max_orientation_num, ))
         
         self.mask_tensor: Tensor = None
+        self.parts_info_mtx: Tensor = None
+        self.project_spaces: Tensor = None
         
         self.init_mask()
         
@@ -363,6 +365,12 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         #                    self.transform_state(self.transform_state(self.transform_state(self.curr_state)))))
     
     def init_mask(self):
+        """
+        First initialize the mask tensor
+        
+        set all valid (part, orientation) pairs to True, this corresponds to mask_tensor[:parts_num, :orientations_num, :]
+        """
+        
         
         # [n, o, b]
         self.mask_tensor = torch.ones(self.max_part_type, self.max_orientation_num, self.max_batch_num, dtype=torch.bool)
@@ -370,13 +378,29 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         # [n, o]
         feasible_orientations = self.slm_metadata.mask_matrix()
         self.mask_tensor = self.mask_tensor * feasible_orientations[..., None]
-        
-        # TODO: 
-        ...
     
     def update_mask(self):
+        # TODO: Check correctness
         
-        ...
+        # Get the remain space of the batches
+        # get_current_view: [n_batches, 3], where 3 refers to **rest_area, occupies_ratio, max_part_height**
+        # [n_batches,]
+        remain_spaces = self.solution.get_current_view(show=False)[:, 0].reshape(-1)
+        
+        # get the project space of all feasible (part, orientation) pairs.
+        # [x, x, x, l1, w1, *, *, l2, w2, *, *]
+        # l = [:, 4::4]
+        if not self.parts_info_mtx or not self.project_spaces:
+            self.parts_info_mtx = self.slm_metadata.init_state()
+            self.project_spaces = self.parts_info_mtx[:, 3::4] * self.parts_info_mtx[:, 4::4]
+        
+        # [num_parts, num_orientations]
+        space_feasible_flag = self.project_spaces[..., None] < remain_spaces[None, None, ...]
+        self.mask_tensor = (space_feasible_flag * self.mask_tensor).bool()
+        
+        # Get remaining parts type
+        feasible_parts_type = (1-self.get_unavailable_parts_mask()).reshape(-1)
+        self.mask_tensor = (feasible_parts_type[..., None, None] * self.mask_tensor).bool()
     
     def get_unavailable_parts_mask(self):
         """
@@ -519,6 +543,8 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         reward = self.last_criterion - criterion - penalty
         self.last_criterion = criterion
 
+        self.update_mask()
+        
         return self.curr_state, reward, terminated, truncated, info
 
 if __name__ == "__main__":

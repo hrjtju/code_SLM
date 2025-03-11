@@ -10,7 +10,7 @@ from doubledqn_flat import DoubleDQN
 from rl_algorithms.ppo_test_flat import PPO, Transition
 from slm_model.slm_env import SingleSLMEnv, SingleSLMEnvParallel1D
 
-from tensorboardX import SummaryWriter
+# from tensorboardX import SummaryWriter
 
 warnings.filterwarnings("ignore")
 
@@ -23,7 +23,7 @@ target_update = 5
 buffer_size = 20000
 minimal_size = 600
 batch_size = 16
-device = torch.device("cuda")
+device = torch.device("cuda") if torch.cuda.is_available() else "cpu"
 epochs=10
 
 MAX_PART_TYPE = 20
@@ -56,8 +56,8 @@ agent = PPO(state_dim=923,
             env=env)
 
 now_str = str(datetime.datetime.now()).split('.')[0].replace(':', '_').replace(' ', '_')
-os.mkdir(f'./tf-logs/{agent.__class__.__name__}_{now_str}')
-writer = SummaryWriter(f'./tf-logs/{agent.__class__.__name__}_{now_str}')
+# os.mkdir(f'./tf-logs/{agent.__class__.__name__}_{now_str}')
+# writer = SummaryWriter(f'./tf-logs/{agent.__class__.__name__}_{now_str}')
 
 return_list = []
 energy_list = []
@@ -75,13 +75,12 @@ for i in range(epochs):
             done = False
             
             while not done:
-                
-                action = agent.take_action(state.to(device))
+                curr_mask = env.mask_tensor
+                action = agent.take_action(state.to(device), curr_mask.to(device))
                 next_state, reward, terminate, truncate, _ = env.step(action)
                 done = terminate or truncate
                 
-                
-                transition.append_history(state, action, next_state, reward, done)
+                transition.append_history(state, action, next_state, reward, done, curr_mask)
                 
                 state = next_state
                 episode_return += reward
@@ -102,8 +101,9 @@ for i in range(epochs):
 
             instances_dict[instance] = 1 if instance not in instances_dict else instances_dict[instance]+1
             
-            writer.add_scalar("Avg Episode Return", moving_avg_return, episode_id)
-            writer.add_scalar("Avg Energy Return", moving_ene_return, episode_id)
+            # writer.add_scalar("Avg 
+            # Episode Return", moving_avg_return, episode_id)
+            # writer.add_scalar("Avg Energy Return", moving_ene_return, episode_id)
             # writer.add_scalar(f"{instance}", scalar_value=episode_return, global_step=instances_dict.get(instance))
             
             pbar.update(1)

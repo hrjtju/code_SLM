@@ -1,5 +1,7 @@
 {
     "cSpell.words": [
+        "keepdim",
+        "pbar",
         "traj"
     ],
     "python.analysis.extraPaths": [

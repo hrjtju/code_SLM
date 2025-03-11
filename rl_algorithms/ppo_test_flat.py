@@ -1,5 +1,6 @@
 from importlib.metadata import distributions
 from re import M
+from ssl import ALERT_DESCRIPTION_DECOMPRESSION_FAILURE
 from typing import Callable, Tuple, List
 import gymnasium as gym
 from pandas import Categorical
@@ -29,20 +30,28 @@ class Transition:
         self.next_states: List[Tensor] = []
         self.rewards: List[float] = []
         self.dones: List[bool] = []
+        self.masks: List[bool] = []
     
-    def append_history(self, state, action, next_state, reward, done) -> None:
+    def append_history(self, state, action, next_state, reward, done, mask=None) -> None:
         self.states.append(state)
         self.actions.append(action)
         self.next_states.append(next_state)
         self.rewards.append(reward)
         self.dones.append(done)
+        if mask:
+            self.masks.append(mask)
     
-    def readout(self) -> Tuple[Tensor, List[Tensor], Tensor, Tensor, Tensor]:
+    def readout(self) -> Tuple[Tensor, List[Tensor], Tensor, Tensor, Tensor]\
+                        |Tuple[Tensor, List[Tensor], Tensor, Tensor, Tensor, Tensor]:
         states_ = torch.stack(self.states, dim=0).to(self.device)
         actions_ = [torch.tensor([i]).view(-1, 1).to(self.device) for i in self.actions]
         rewards_ = torch.tensor([self.rewards], dtype=torch.float).to(self.device)
         next_states_ = torch.stack(self.next_states, dim=0).to(self.device)
         dones_ = torch.tensor([self.dones], dtype=torch.float).to(self.device)
+        
+        if len(self.masks) == len(self.dones):
+            masks_ = torch.stack(self.masks, dim=0).bool().to(self.device)
+            return states_, actions_, rewards_, next_states_, dones_, masks_
         
         return states_, actions_, rewards_, next_states_, dones_
 
@@ -84,16 +93,7 @@ class PolicyNet(torch.nn.Module):
         part_dist = self.policy_part(feature_stem)
         ori_dist = self.policy_orientation(feature_stem)
         
-        # filter out infeasible parts and batches
-        part_mask = 1 - self.env.get_unavailable_parts_mask().float()
-        batch_mask = 1 - (self.env.solution.get_current_view(show=True).reshape(-1) >= 1).float()
-        print(part_dist.shape)
-        
-        # TODO: Fix this
-        masked_part_dist = torch.nn.functional.softmax(part_dist, dim=-1) * part_mask.reshape(1, -1).to(self.device)
-        masked_part_dist = masked_part_dist / masked_part_dist.sum(-1, keepdim=True)
-        
-        return masked_part_dist, ori_dist, batch_dist
+        return part_dist, ori_dist, batch_dist
         
 class ValueNet(torch.nn.Module):
     def __init__(self, state_dim, hidden_dim):
@@ -132,25 +132,49 @@ class PPO:
         self.eps = eps
         self.device = device
     
-    def log_prob(self, state_actions: torch.Tensor, actions_history):
-        return torch.log(action.gather(1))
+    def normalize(self, p):
+        return p / torch.sum(p, dim=-1)
     
-    def take_action(self, state: torch.Tensor):
+    def take_action(self, state: torch.Tensor, curr_mask: torch.Tensor):
+        # TODO: Update According to mask
+        
         state = state.reshape(1, -1)
         part_dist, ori_dist, batch_dist = self.actor(state)
-        action_dists = list(map(lambda x:torch.distributions.Categorical(x), [part_dist, batch_dist]))
-        part, batch = list(map(lambda x:x.sample(), action_dists))
-       
-        ori_num = len(self.env.slm_metadata.parts[int(part.item())].build_params)
-        ori_mask = 1 - torch.tensor(
-            [(0 if i < ori_num else 1) for i in range(self.max_ori_num)]
-        )
-        masked_ori_dist = torch.nn.functional.softmax(ori_dist, dim=-1) * ori_mask.reshape(1, -1).to(self.device)
-        masked_ori_dist = masked_ori_dist / masked_ori_dist.sum()
         
-        ori = torch.distributions.Categorical(masked_ori_dist).sample()
+        part_dist = self.normalize(part_dist * torch.sum(curr_mask, dim=(-1, -2)).bool())
+        part = torch.distributions.Categorical(part_dist).sample()
+        
+        ori_dist = self.normalize(ori_dist * torch.sum(curr_mask[part], dim=-1).bool())
+        ori = torch.distributions.Categorical(ori_dist).sample()
+        
+        batch_dist = self.normalize(batch_dist * curr_mask[part, ori].bool())
+        batch = torch.distributions.Categorical(batch_dist).sample()
         
         return [part.item(), ori.item(), batch.item()]
+    
+    def get_filtered_dist_with_action(self, 
+                                      actions: Tuple[int, int, int], 
+                                      dists: Tuple[Tensor, Tensor, Tensor], 
+                                      mask: Tensor
+                                      ):
+        part, ori, _ = actions
+        
+        # [n_step, sub_action_dim]
+        pd, od, bd = dists
+        # [n_step, n_parts]
+        part_mask = torch.sum(mask, dim=(-1, -2)).bool()
+        pd = self.normalize(pd * part_mask)
+        
+        # TODO: Check: Ori mask
+        ori_mask = torch.sum(part_mask[:, part.long()], dim=-1).bool()
+        od = self.normalize(ori_mask * od)
+        
+        # TODO: Check: Batch mask
+        batch_mask = part_mask[:, part.long(), ori.long()]
+        bd = self.normalize(batch_mask * bd)
+        
+        return [pd, od, bd]
+        
     
     def update(self, transition: Transition):
         # states = torch.stack(transition.states, dim=0).to(self.device)
@@ -159,28 +183,37 @@ class PPO:
         # next_states = torch.stack(transition.next_states, dim=0).to(self.device)
         # dones = torch.tensor([transition.dones], dtype=torch.float).to(self.device)
         
-        states, actions, rewards, next_states, dones = transition.readout()
+        # masks: [n_step, n_part, n_ori, n_batch]
+        states, actions, rewards, next_states, dones, masks = transition.readout()
         
         rewards = (rewards + 8.0) / 8.0
         td_target = rewards + self.gamma * self.critic(next_states) * (1 - dones)
         td_delta = rewards - self.critic(states)
         advantage = compute_advantage(self.gamma, self.lmbda, td_delta.cpu()).to(self.device)
         
+        # dists = [part_dist, ori_dist, batch_dist]
         dists = self.actor(states)
+        
+        
+        # TODO: Fix log probs
+        # TODO: 按照 part, orientation, batch 的顺序依次过滤 policy distribution
+        # TODO: 有没有什么更好的做法？（最差的做法就是一个循环）
+        # TODO: Check
         old_log_probs_ls =  list(map(
             lambda x: torch.log(x[0].gather(1, x[1])).detach(),
-            zip(dists, actions)
+            zip(self.get_filtered_dist_with_action(actions, dists, masks), actions)
         ))
         
         for _ in range(self.epochs):
             
-            # TODO: Split the batch performation in to individual steps
-            # TODO: As the mask may change
-            
             dists = self.actor(states)
+            
+            # TODO: Fix log probs
+            # TODO: 同理如上
+            # TODO: Check
             log_probs_ls = list(map(
                 lambda x: torch.log(x[0].gather(1, x[1])).detach(),
-                zip(dists, actions)
+                zip(self.get_filtered_dist_with_action(actions, dists, masks), actions)
             ))
             
             ratio_ls = [torch.exp(lp - olp) for (lp, olp) in zip(log_probs_ls, old_log_probs_ls)]
@@ -199,62 +232,3 @@ class PPO:
             
             self.actor_optimizer.step()
             self.critic_optimizer.step()
-
-
-if __name__ == "__main__":
-    
-    actor_lr = 1e-4
-    critic_lr = 1e-4
-    num_episodes = 5000
-    hidden_dim = 128
-    gamma = 0.9
-    lmbda = 0.9
-    epochs = 100
-    eps = 0.2
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-        
-    MAX_PART_TYPE = 20
-    MAX_ORIENTATION_NUM = 7
-    MAX_BATCH_NUM = 20
-    
-    env = SingleSLMEnvParallel1D(in_path="./instances_json/", phase="Train",
-                                 max_part_type=MAX_PART_TYPE, max_batch_num=MAX_BATCH_NUM, max_orientation_num=MAX_ORIENTATION_NUM, ppo=True)
-    env_name = env.name
-    
-    torch.manual_seed(0)
-    state_dim = env.observation_space.shape[0]
-    action_dim = env.action_space.shape[0]
-    
-    agent = PPO(state_dim, hidden_dim, action_dim, actor_lr, critic_lr, lmbda, epochs, eps, gamma, device, env)
-    
-    return_list = []
-    for i in range(epochs):
-        with tqdm(total=int(num_episodes/epochs), desc=f"Iteration {i}") as pbar:
-            for i_episode in range(int(num_episodes / epochs)):
-                episode_return = 0
-                
-                transition = Transition()
-                
-                state, _ = env.reset()
-                done = False 
-                
-                while not done:
-                    action = agent.take_action(state)
-                    next_state, reward, terminated, truncated, *_ = env.step(action)
-                    done = terminated or truncated
-                    
-                    transition.append_history(state, action, next_state, reward, done)
-                    
-                    state = next_state
-                    episode_return += reward
-                    
-                return_list.append(episode_return)
-                agent.update(transition)
-                
-                if (i_episode + 1) % 10 == 0:
-                    pbar.set_postfix({
-                        "Episode": f"{(num_episodes/epochs * i + i_episode):>4d}",
-                        "Return": f"{np.mean(return_list[-10:]):.3f}"
-                    })
-                pbar.update(1)
-                
