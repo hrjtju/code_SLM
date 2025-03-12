@@ -19,7 +19,7 @@ wandb.init(
     config={
         "actions_type": "part-orientation-batch, tensor",
         "criterion": "energy-diff",
-        "lr": 5e-5,
+        "lr": 5e-3,
         "num_episodes": 10000,
         "hidden_dim": 128,
         "gamma": 1.00,
@@ -32,7 +32,7 @@ wandb.init(
 )
     
 
-lr = 5e-5
+lr = 5e-3
 num_episodes = 10000
 hidden_dim = 128
 gamma = 1.00
