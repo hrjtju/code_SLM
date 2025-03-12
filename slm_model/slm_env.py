@@ -304,7 +304,7 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         random.seed(seed)
         
         self.ppo = ppo
-        print(f"{self.ppo=}")
+        # print(f"{self.ppo=}")
         self.name = "SingleSLMEnvParallel1D"
         self.phase = phase
         self.in_path = in_path
@@ -390,16 +390,18 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         # get the project space of all feasible (part, orientation) pairs.
         # [x, x, x, l1, w1, *, *, l2, w2, *, *]
         # l = [:, 4::4]
-        if not self.parts_info_mtx or not self.project_spaces:
+        if self.parts_info_mtx is None or self.project_spaces is None:
             self.parts_info_mtx = self.slm_metadata.init_state()
             self.project_spaces = self.parts_info_mtx[:, 3::4] * self.parts_info_mtx[:, 4::4]
+            # print(self.parts_info_mtx, self.parts_info_mtx[:, 3::4], self.parts_info_mtx[:, 4::4])
         
         # [num_parts, num_orientations]
+        # print(remain_spaces, self.project_spaces)
         space_feasible_flag = self.project_spaces[..., None] < remain_spaces[None, None, ...]
         self.mask_tensor = (space_feasible_flag * self.mask_tensor).bool()
         
         # Get remaining parts type
-        feasible_parts_type = (1-self.get_unavailable_parts_mask()).reshape(-1)
+        feasible_parts_type = (~self.get_unavailable_parts_mask()).reshape(-1)
         self.mask_tensor = (feasible_parts_type[..., None, None] * self.mask_tensor).bool()
     
     def get_unavailable_parts_mask(self):

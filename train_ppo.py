@@ -10,19 +10,32 @@ from doubledqn_flat import DoubleDQN
 from rl_algorithms.ppo_test_flat import PPO, Transition
 from slm_model.slm_env import SingleSLMEnv, SingleSLMEnvParallel1D
 
-# from tensorboardX import SummaryWriter
+import wandb
 
 warnings.filterwarnings("ignore")
+
+wandb.init(
+    project="slmflat-PPO",
+    config={
+        "actions_type": "part-orientation-batch, tensor",
+        "criterion": "energy-diff",
+        "lr": 5e-5,
+        "num_episodes": 10000,
+        "hidden_dim": 128,
+        "gamma": 1.00,
+        "device": "cuda",
+        "max_part_type": 20,
+        "max_orientation_num": 7,
+        "max_batch_num": 20,
+        "time": datetime.datetime.now().strftime(r"%Y-%m-%d %H:%M:%S")
+    },
+)
+    
 
 lr = 5e-5
 num_episodes = 10000
 hidden_dim = 128
 gamma = 1.00
-epsilon = 0.05 # 0.05
-target_update = 5
-buffer_size = 20000
-minimal_size = 600
-batch_size = 16
 device = torch.device("cuda") if torch.cuda.is_available() else "cpu"
 epochs=10
 
@@ -30,16 +43,12 @@ MAX_PART_TYPE = 20
 MAX_ORIENTATION_NUM = 7
 MAX_BATCH_NUM = 20
 
-replay_buffer = ReplayBuffer(buffer_size)
-
 env = SingleSLMEnvParallel1D(in_path="./instances_json/", phase="Train",
                              max_part_type=MAX_PART_TYPE, max_batch_num=MAX_BATCH_NUM, max_orientation_num=MAX_ORIENTATION_NUM, 
                              seed=25, 
                              ppo=True)
 env_name = env.name
 
-# agent = DoubleDQN(lr, gamma, epsilon, target_update, device, 
-#                   max_part=MAX_PART_TYPE, max_ori=MAX_ORIENTATION_NUM, max_batch=MAX_BATCH_NUM)
 agent = PPO(state_dim=923,
             hidden_dim=512,
             action_dim=None,
@@ -69,7 +78,7 @@ for i in range(epochs):
         for i_episode in range(int(num_episodes//epochs)):
             episode_return = 0
             
-            transition = Transition()
+            transition = Transition(device=device)
             
             state, instance = env.reset()
             done = False
@@ -101,11 +110,12 @@ for i in range(epochs):
 
             instances_dict[instance] = 1 if instance not in instances_dict else instances_dict[instance]+1
             
-            # writer.add_scalar("Avg 
-            # Episode Return", moving_avg_return, episode_id)
-            # writer.add_scalar("Avg Energy Return", moving_ene_return, episode_id)
-            # writer.add_scalar(f"{instance}", scalar_value=episode_return, global_step=instances_dict.get(instance))
+            wandb.log({"Avg Episode Return": moving_avg_return, 
+                           "Avg Energy Return": moving_ene_return,
+                           f"{instance}": env.last_criterion
+            })
             
             pbar.update(1)
 
-torch.save(agent.q_net.state_dict(), f"./model_params/{agent.__class__.__name__}_{now_str}.pt")
+now_str = datetime.datetime.now().strftime(r"%Y-%m-%d_%H-%M-%S")
+torch.save(agent.q_net.state_dict(), f"./model_params/{env.__class__.__name__}_{agent.__class__.__name__}_{now_str}.pt")

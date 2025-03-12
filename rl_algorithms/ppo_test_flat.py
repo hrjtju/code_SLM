@@ -24,13 +24,14 @@ def compute_advantage(gamma: float, lmbda: float, td_delta: Tensor) -> Tensor:
     return torch.tensor(advantage_list, dtype=torch.float)
 
 class Transition:
-    def __init__(self) -> None:
+    def __init__(self, device) -> None:
         self.states: List[Tensor] = []
         self.actions: List[List[int]] = []
         self.next_states: List[Tensor] = []
         self.rewards: List[float] = []
         self.dones: List[bool] = []
         self.masks: List[bool] = []
+        self.device = device
     
     def append_history(self, state, action, next_state, reward, done, mask=None) -> None:
         self.states.append(state)
@@ -38,13 +39,13 @@ class Transition:
         self.next_states.append(next_state)
         self.rewards.append(reward)
         self.dones.append(done)
-        if mask:
+        if mask is not None:
             self.masks.append(mask)
     
     def readout(self) -> Tuple[Tensor, List[Tensor], Tensor, Tensor, Tensor]\
                         |Tuple[Tensor, List[Tensor], Tensor, Tensor, Tensor, Tensor]:
         states_ = torch.stack(self.states, dim=0).to(self.device)
-        actions_ = [torch.tensor([i]).view(-1, 1).to(self.device) for i in self.actions]
+        actions_ = torch.stack([torch.tensor([i]).view(-1).to(self.device) for i in self.actions], dim=0).to(self.device)
         rewards_ = torch.tensor([self.rewards], dtype=torch.float).to(self.device)
         next_states_ = torch.stack(self.next_states, dim=0).to(self.device)
         dones_ = torch.tensor([self.dones], dtype=torch.float).to(self.device)
@@ -72,18 +73,21 @@ class PolicyNet(torch.nn.Module):
             nn.Linear(256, 128),
             nn.LeakyReLU(),
             nn.Linear(128, max_batch_num),
+            nn.Sigmoid(),
             nn.Softmax(dim=-1)
         )
         self.policy_part = nn.Sequential(
             nn.Linear(256, 128),
             nn.LeakyReLU(),
             nn.Linear(128, max_part_type),
+            nn.Sigmoid(),
             nn.Softmax(dim=-1)
         )
         self.policy_orientation = nn.Sequential(
             nn.Linear(256, 128),
             nn.LeakyReLU(),
             nn.Linear(128, max_ori_num),
+            nn.Sigmoid(),
             nn.Softmax(dim=-1)
         )
         
@@ -133,7 +137,7 @@ class PPO:
         self.device = device
     
     def normalize(self, p):
-        return p / torch.sum(p, dim=-1)
+        return p / torch.sum(p, dim=-1, keepdim=True)
     
     def take_action(self, state: torch.Tensor, curr_mask: torch.Tensor):
         # TODO: Update According to mask
@@ -141,7 +145,9 @@ class PPO:
         state = state.reshape(1, -1)
         part_dist, ori_dist, batch_dist = self.actor(state)
         
+        # print(part_dist)
         part_dist = self.normalize(part_dist * torch.sum(curr_mask, dim=(-1, -2)).bool())
+        # print(part_dist)
         part = torch.distributions.Categorical(part_dist).sample()
         
         ori_dist = self.normalize(ori_dist * torch.sum(curr_mask[part], dim=-1).bool())
@@ -157,21 +163,29 @@ class PPO:
                                       dists: Tuple[Tensor, Tensor, Tensor], 
                                       mask: Tensor
                                       ):
-        part, ori, _ = actions
+        # print(actions, actions[0].shape, len(actions))
+        # part, ori shape = [n_step, 1]
+        part, ori = actions[:, 0], actions[:, 1]
         
         # [n_step, sub_action_dim]
         pd, od, bd = dists
+        
+        # print(pd.shape, od.shape, bd.shape)
+        
         # [n_step, n_parts]
         part_mask = torch.sum(mask, dim=(-1, -2)).bool()
         pd = self.normalize(pd * part_mask)
         
         # TODO: Check: Ori mask
-        ori_mask = torch.sum(part_mask[:, part.long()], dim=-1).bool()
+        ori_mask = torch.sum(mask[torch.range(0, mask.shape[0]-1).long(), part.long()], dim=-1).bool()
+        # print(mask.shape, ori_mask.shape, od.shape)
         od = self.normalize(ori_mask * od)
         
         # TODO: Check: Batch mask
-        batch_mask = part_mask[:, part.long(), ori.long()]
+        batch_mask = mask[torch.range(0, mask.shape[0]-1).long(), part.long(), ori.long()]
         bd = self.normalize(batch_mask * bd)
+        
+        # print(pd.shape, od.shape, bd.shape)
         
         return [pd, od, bd]
         
@@ -187,7 +201,7 @@ class PPO:
         states, actions, rewards, next_states, dones, masks = transition.readout()
         
         rewards = (rewards + 8.0) / 8.0
-        td_target = rewards + self.gamma * self.critic(next_states) * (1 - dones)
+        td_target: Tensor = rewards + self.gamma * self.critic(next_states) * (1 - dones)
         td_delta = rewards - self.critic(states)
         advantage = compute_advantage(self.gamma, self.lmbda, td_delta.cpu()).to(self.device)
         
@@ -195,13 +209,15 @@ class PPO:
         dists = self.actor(states)
         
         
+        slice_a = lambda x: (x[:, 0], x[:, 1], x[:, 2]) 
+        
         # TODO: Fix log probs
         # TODO: 按照 part, orientation, batch 的顺序依次过滤 policy distribution
         # TODO: 有没有什么更好的做法？（最差的做法就是一个循环）
         # TODO: Check
         old_log_probs_ls =  list(map(
-            lambda x: torch.log(x[0].gather(1, x[1])).detach(),
-            zip(self.get_filtered_dist_with_action(actions, dists, masks), actions)
+            lambda x: torch.log(x[0].gather(1, x[1][..., None])).detach(),
+            zip(self.get_filtered_dist_with_action(actions, dists, masks), slice_a(actions))
         ))
         
         for _ in range(self.epochs):
@@ -212,8 +228,8 @@ class PPO:
             # TODO: 同理如上
             # TODO: Check
             log_probs_ls = list(map(
-                lambda x: torch.log(x[0].gather(1, x[1])).detach(),
-                zip(self.get_filtered_dist_with_action(actions, dists, masks), actions)
+                lambda x: torch.log(x[0].gather(1, x[1][..., None])),
+                zip(self.get_filtered_dist_with_action(actions, dists, masks), slice_a(actions))
             ))
             
             ratio_ls = [torch.exp(lp - olp) for (lp, olp) in zip(log_probs_ls, old_log_probs_ls)]
