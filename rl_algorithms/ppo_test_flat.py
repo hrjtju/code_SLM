@@ -22,10 +22,12 @@ class PPO_Log(pydantic.BaseModel):
 
 
 def calculate_gradient_norm(model: torch.nn.Module) -> float:
-    for p in model.parameters():
-        param_norm = p.grad.data.norm(2)
+    total_norm = 0
+    parameters = [p for p in model.parameters() if p.grad is not None and p.requires_grad]
+    for p in parameters:
+        param_norm = p.grad.detach().data.norm(2)
         total_norm += param_norm.item() ** 2
-    total_norm = total_norm ** (1. / 2)
+    total_norm = total_norm ** 0.5
     return total_norm
 
 def compute_advantage(gamma: float, lmbda: float, td_delta: Tensor) -> Tensor:
@@ -87,21 +89,21 @@ class PolicyNet(torch.nn.Module):
         self.policy_batch = nn.Sequential(
             nn.Linear(256, 128),
             nn.LeakyReLU(),
-            nn.BatchNorm1d(128),
+            nn.LayerNorm(128),
             nn.Linear(128, max_batch_num),
             nn.Softmax(dim=-1)
         )
         self.policy_part = nn.Sequential(
             nn.Linear(256, 128),
             nn.LeakyReLU(),
-            nn.BatchNorm1d(128),
+            nn.LayerNorm(128),
             nn.Linear(128, max_part_type),
             nn.Softmax(dim=-1)
         )
         self.policy_orientation = nn.Sequential(
             nn.Linear(256, 128),
             nn.LeakyReLU(),
-            nn.BatchNorm1d(128),
+            nn.LayerNorm(128),
             nn.Linear(128, max_ori_num),
             nn.Softmax(dim=-1)
         )
@@ -275,8 +277,8 @@ class PPO:
             self.critic_optimizer.step()
         
         avg = lambda x: sum(x) / len(x)
-        return PPO_Log(avg(avg_actor_loss_ls), 
-                       avg(avg_critic_loss_ls),
-                       avg(avg_actor_grad_norm_ls),
-                       avg(avg_critic_grad_norm_ls)
+        return PPO_Log(avg_actor_loss=avg(avg_actor_loss_ls), 
+                       avg_critic_loss=avg(avg_critic_loss_ls),
+                       avg_actor_grad_norm=avg(avg_actor_grad_norm_ls),
+                       avg_critic_grad_norm=avg(avg_critic_grad_norm_ls)
                        )

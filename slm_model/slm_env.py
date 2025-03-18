@@ -223,9 +223,9 @@ class SingleSLMEnv(Env):
         orientation_id = orientation_rank[rank_ptr]
         
         # Try allocating the part according to the orientation selected.
-        view, allocated = self.solution.add_part(self.slm_metadata.parts[part_id], orientation=orientation_id)
+        view, allocated, penalty = self.solution.add_part(self.slm_metadata.parts[part_id], orientation=orientation_id)
         
-        all_penalty = 0
+        all_penalty = penalty
         
         # If allocation fails, try other orientations
         # If the part still cannot be allocated, then add a new bin and reallocate
