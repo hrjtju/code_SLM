@@ -32,12 +32,12 @@ wandb.init(
 )
     
 
-lr = 5e-3
+lr = 0.01
 num_episodes = 10000
 hidden_dim = 128
 gamma = 1.00
 device = torch.device("cuda") if torch.cuda.is_available() else "cpu"
-epochs=10
+epochs=20
 
 MAX_PART_TYPE = 20
 MAX_ORIENTATION_NUM = 7
@@ -96,7 +96,8 @@ for i in range(epochs):
                 
             return_list.append(episode_return)
             energy_list.append(env.last_criterion)
-            agent.update(transition)
+            
+            episode_log = agent.update(transition)
 
             episode_id = int(num_episodes / 10 * i + i_episode + 1)
             moving_avg_return = np.mean(return_list[-200:] if len(return_list) > 200 else np.mean(return_list))
@@ -105,14 +106,22 @@ for i in range(epochs):
             pbar.set_postfix({
                 "episode": f"{episode_id:4d}",
                 "return": f"{f'{moving_avg_return:.6e}':12s}",
-                "energy": f"{f'{moving_ene_return:.6e}':12s}"
+                "energy": f"{f'{moving_ene_return:.6e}':12s}",
+                "avg_actor_loss": f"{f'{episode_log.avg_actor_loss:.6e}':12s}",
+                "avg_critic_loss": f"{f'{episode_log.avg_critic_loss:.6e}':12s}",
+                "avg_actor_grad_norm": f"{f'{episode_log.avg_actor_grad_norm:.6e}':12s}",
+                "avg_critic_grad_norm": f"{f'{episode_log.avg_critic_grad_norm:.6e}':12s}",
             })
 
             instances_dict[instance] = 1 if instance not in instances_dict else instances_dict[instance]+1
             
             wandb.log({"Avg Episode Return": moving_avg_return, 
-                           "Avg Energy Return": moving_ene_return,
-                           f"{instance}": env.last_criterion
+                        "Avg Energy Return": moving_ene_return,
+                        f"{instance}": env.last_criterion,
+                        "avg_actor_loss": episode_log.avg_actor_loss,
+                        "avg_critic_loss": episode_log.avg_critic_loss,
+                        "avg_actor_grad_norm": episode_log.avg_actor_grad_norm,
+                        "avg_critic_grad_norm": episode_log.avg_critic_grad_norm,
             })
             
             pbar.update(1)

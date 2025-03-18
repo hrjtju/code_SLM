@@ -224,7 +224,9 @@ class SingleSLMEnv(Env):
         
         # Try allocating the part according to the orientation selected.
         view, allocated = self.solution.add_part(self.slm_metadata.parts[part_id], orientation=orientation_id)
-                
+        
+        all_penalty = 0
+        
         # If allocation fails, try other orientations
         # If the part still cannot be allocated, then add a new bin and reallocate
         # Terminate the env if all parts are allocated
@@ -249,8 +251,9 @@ class SingleSLMEnv(Env):
                 
                 orientation_id = orientation_rank[rank_ptr]
                     
-                view, allocated = self.solution.add_part(self.slm_metadata.parts[part_id], orientation=orientation_id)
-            
+                view, allocated, penalty = self.solution.add_part(self.slm_metadata.parts[part_id], orientation=orientation_id)
+                all_penalty += penalty
+                
             if allocated:
                 self.update_state(view=view, part_id=part_id)
                 
@@ -262,8 +265,9 @@ class SingleSLMEnv(Env):
                 rank_ptr = 0
                 # Add a new batch (same size) and retry allocating
                 self.solution.add_batch(self.slm_metadata.machine, self.slm_metadata.process)
-                view, allocated = self.solution.add_part(self.slm_metadata.parts[part_id],
+                view, allocated, penalty = self.solution.add_part(self.slm_metadata.parts[part_id],
                                                          orientation=orientation_rank[rank_ptr])
+                all_penalty += penalty + 0.5
                 
                 if allocated:
                     self.update_state(view=view, part_id=part_id)   

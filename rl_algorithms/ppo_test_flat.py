@@ -3,6 +3,7 @@ from re import M
 from ssl import ALERT_DESCRIPTION_DECOMPRESSION_FAILURE
 from typing import Callable, Tuple, List
 import gymnasium as gym
+import pydantic
 from pandas import Categorical
 import torch
 from torch import Tensor
@@ -12,6 +13,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from slm_model.slm_env import SingleSLMEnvParallel1D
+
+class PPO_Log(pydantic.BaseModel):
+    avg_actor_loss: float
+    avg_critic_loss: float
+    avg_actor_grad_norm: float
+    avg_critic_grad_norm: float
+
+
+def calculate_gradient_norm(model: torch.nn.Module) -> float:
+    for p in model.parameters():
+        param_norm = p.grad.data.norm(2)
+        total_norm += param_norm.item() ** 2
+    total_norm = total_norm ** (1. / 2)
+    return total_norm
 
 def compute_advantage(gamma: float, lmbda: float, td_delta: Tensor) -> Tensor:
     td_delta = td_delta.detach().numpy()
@@ -72,22 +87,22 @@ class PolicyNet(torch.nn.Module):
         self.policy_batch = nn.Sequential(
             nn.Linear(256, 128),
             nn.LeakyReLU(),
+            nn.BatchNorm1d(128),
             nn.Linear(128, max_batch_num),
-            nn.Sigmoid(),
             nn.Softmax(dim=-1)
         )
         self.policy_part = nn.Sequential(
             nn.Linear(256, 128),
             nn.LeakyReLU(),
+            nn.BatchNorm1d(128),
             nn.Linear(128, max_part_type),
-            nn.Sigmoid(),
             nn.Softmax(dim=-1)
         )
         self.policy_orientation = nn.Sequential(
             nn.Linear(256, 128),
             nn.LeakyReLU(),
+            nn.BatchNorm1d(128),
             nn.Linear(128, max_ori_num),
-            nn.Sigmoid(),
             nn.Softmax(dim=-1)
         )
         
@@ -190,7 +205,7 @@ class PPO:
         return [pd, od, bd]
         
     
-    def update(self, transition: Transition):
+    def update(self, transition: Transition) -> PPO_Log:
         # states = torch.stack(transition.states, dim=0).to(self.device)
         # actions = [torch.tensor([i]).view(-1, 1).to(self.device) for i in transition.actions]
         # rewards = torch.tensor([transition.rewards], dtype=torch.float).to(self.device)
@@ -220,6 +235,11 @@ class PPO:
             zip(self.get_filtered_dist_with_action(actions, dists, masks), slice_a(actions))
         ))
         
+        avg_actor_loss_ls: List[float] = []
+        avg_critic_loss_ls: List[float] = []
+        avg_actor_grad_norm_ls: List[float] = []
+        avg_critic_grad_norm_ls: List[float] = []
+        
         for _ in range(self.epochs):
             
             dists = self.actor(states)
@@ -240,6 +260,11 @@ class PPO:
             actor_loss = torch.mean(-torch.min(surr1, surr2))
             critic_loss = torch.mean(F.mse_loss(self.critic(states), td_target.detach()))
             
+            avg_actor_loss_ls.append(actor_loss.item())
+            avg_critic_loss_ls.append(actor_loss.item())
+            avg_actor_grad_norm_ls.append(calculate_gradient_norm(self.actor))
+            avg_critic_grad_norm_ls.append(calculate_gradient_norm(self.critic))
+            
             self.actor_optimizer.zero_grad()
             self.critic_optimizer.zero_grad()
             
@@ -248,3 +273,10 @@ class PPO:
             
             self.actor_optimizer.step()
             self.critic_optimizer.step()
+        
+        avg = lambda x: sum(x) / len(x)
+        return PPO_Log(avg(avg_actor_loss_ls), 
+                       avg(avg_critic_loss_ls),
+                       avg(avg_actor_grad_norm_ls),
+                       avg(avg_critic_grad_norm_ls)
+                       )

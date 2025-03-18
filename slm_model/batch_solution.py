@@ -135,7 +135,7 @@ class Batch:
         """
         return sum(map(lambda x:x["S"], self.parts_info))
     
-    def add_part(self, part: Part, orientation: int) -> Tuple[Tensor, bool]:
+    def add_part(self, part: Part, orientation: int) -> Tuple[Tensor, bool, float]:
         """
         Add part to this batch.
         
@@ -147,7 +147,7 @@ class Batch:
         # Checks if the projection area of the part is smaller than the 
         # area available in this batch.
         if part.get_proj_area(orientation) > self.get_rest_area():
-            return None, False
+            return None, False, 0.1
         
         # Try to add the part into the batch using the bin-packing algorithm
         # If it cannot be packed, return False.
@@ -160,10 +160,10 @@ class Batch:
             # Update the current view
             self.bin_view = self.get_current_view()
             
-            return self.bin_view, True
+            return self.bin_view, True, 0
         else:
             # don't update anything
-            return self.bin_view, False
+            return self.bin_view, False, 0.1
       
     def empty(self) -> bool:
         """
@@ -239,7 +239,7 @@ class Solution:
         """
         return self.get_batch().get_current_view(stretch=stretch, show=show)
     
-    def add_part(self, part: Part, orientation: int) -> Tuple[Tensor, bool]:
+    def add_part(self, part: Part, orientation: int) -> Tuple[Tensor, bool, float]:
         """
         Try to add the part to the current batch
         """
