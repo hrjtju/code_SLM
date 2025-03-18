@@ -169,7 +169,9 @@ class DoubleDQN:
                 torch.randn(self.max_part).abs() + 0.01, torch.randn(self.max_ori).abs() + 0.01
                 )
             action = tuple(map(lambda x:x.reshape(1, -1), action))
-            self.epsilon = max(0.05, self.epsilon * 0.99999)
+            
+            if np.random.random() < self.epsilon:
+                self.epsilon = max(0.05, self.epsilon * 0.99999)
         else:
             action = self.q_net(state)
         

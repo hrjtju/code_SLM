@@ -130,10 +130,11 @@ class DoubleDQN:
             action = (
                 torch.randn(self.max_part+self.max_ori+self.max_batch).abs() + 0.01
                 )
-            self.epsilon = max(0.05, self.epsilon * 0.99999)
+            
+            if np.random.random() < self.epsilon:
+                self.epsilon = max(0.05, self.epsilon * 0.99999)
         else:
             action = self.q_net(state)
-
         
         return action
 
@@ -284,7 +285,7 @@ if __name__ == "__main__":
                         )
                         
                 return_list.append(episode_return)
-                energy_list.append(env.last_criterion)
+                energy_list.append(env.solution.calculate_energy())
 
                 episode_id = int(num_episodes / 10 * i + i_episode + 1)
                 moving_avg_return = np.mean(return_list[-200:] if len(return_list) > 200 else np.mean(return_list))
