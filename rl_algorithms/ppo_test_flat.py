@@ -9,6 +9,7 @@ import torch
 from torch import Tensor
 import torch.nn as nn 
 import torch.nn.functional as F
+from torch.nn.utils import clip_grad_norm_
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
@@ -139,9 +140,9 @@ class PPO:
         self.device = device
         self.max_ori_num = max_ori_num
         
-        self.actor: Callable[[torch.Tensor], Tuple[torch.Tensor]] \
+        self.actor: nn.Module | Callable[[torch.Tensor], Tuple[torch.Tensor]] \
             = PolicyNet(state_dim, hidden_dim, action_dim, max_part_type, max_ori_num, max_batch_num, env, device).to(device)
-        self.critic: Callable[[torch.Tensor], torch.Tensor] \
+        self.critic: nn.Module | Callable[[torch.Tensor], torch.Tensor] \
             = ValueNet(state_dim, hidden_dim).to(device)
         
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), actor_lr)
@@ -273,6 +274,9 @@ class PPO:
             actor_loss.backward()
             critic_loss.backward()
             
+            clip_grad_norm_(self.actor.parameters(), 10)
+            clip_grad_norm_(self.critic.parameters(), 10)
+
             self.actor_optimizer.step()
             self.critic_optimizer.step()
         
