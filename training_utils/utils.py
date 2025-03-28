@@ -28,3 +28,6 @@ class IntstanceAvgMeter:
 
     def reset(self):
         self.results = defaultdict(lambda : deque(maxlen=self.window_size))
+    
+    def records_count_dist(self):
+        return {key: len(val) for (key, val) in self.results.items}
