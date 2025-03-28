@@ -18,7 +18,7 @@ from typing import Iterable, Tuple
 import warnings
 import sys
 
-from training_utils.model_utils import DQN_Log, calculate_gradient_norm
+from training_utils.model_utils import DQN_Log, calculate_gradient_norm, init_weights_normal
 
 # Add the slm_model directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
@@ -83,15 +83,17 @@ class QNet(nn.Module):
         
         self.policy = nn.Sequential(
             nn.Linear(in_features=683, out_features=512),
-            nn.ReLU(inplace=True),
+            nn.LeakyReLU(inplace=True),
             nn.Linear(in_features=512, out_features=256),
-            nn.ReLU(inplace=True),
+            nn.LeakyReLU(inplace=True),
             nn.Linear(in_features=256, out_features=128),
-            nn.ReLU(inplace=True),
+            nn.LeakyReLU(inplace=True),
+            nn.LayerNorm(128),
             nn.Linear(in_features=128, out_features=47),
-            nn.Sigmoid()
+            # nn.Softmax(dim=-1) #! 按道理来说应该分组 softmax，或者直接换成三个头
         )
-        
+    
+    
     def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
         dist = self.policy(x)        
         return dist
@@ -123,7 +125,10 @@ class DoubleDQN:
         self.device = device
         
         self.q_net = QNet(self.max_part, self.max_ori, self.view_shape, self.device).to(self.device)
+        self.q_net.apply(init_weights_normal)
+        
         self.target_q_net = QNet(self.max_part, self.max_ori, self.view_shape, self.device).to(self.device)
+        self.q_net.apply(init_weights_normal)
         
         self.optimizer = torch.optim.Adam(self.q_net.parameters(), lr=lr)
         
@@ -237,7 +242,7 @@ if __name__ == "__main__":
         },
     )
     
-    lr = 5e-3
+    lr = 0.01
     num_episodes = 50000
     hidden_dim = 128
     gamma = 1.00
