@@ -24,7 +24,7 @@ class IntstanceAvgMeter:
         return self._mean([max(val) for val in self.results.values() if val])
 
     def all_min_avg(self) -> float:
-        return self._mean([max(val) for val in self.results.values() if val])
+        return self._mean([min(val) for val in self.results.values() if val])
 
     def reset(self):
         self.results = defaultdict(lambda : deque(maxlen=self.window_size))
