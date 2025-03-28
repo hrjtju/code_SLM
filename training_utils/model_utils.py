@@ -1,4 +1,5 @@
 import torch
+from torch import nn
 from torch import Tensor
 import pydantic
 
@@ -12,7 +13,7 @@ class DQN_Log(pydantic.BaseModel):
     loss: float
     grad_norm: float
 
-def calculate_gradient_norm(model: torch.nn.Module) -> float:
+def calculate_gradient_norm(model: nn.Module) -> float:
     total_norm = 0
     parameters = [p for p in model.parameters() if p.grad is not None and p.requires_grad]
     for p in parameters:
@@ -30,3 +31,11 @@ def compute_advantage(gamma: float, lmbda: float, td_delta: Tensor) -> Tensor:
         advantage_list.append(advantage)
     advantage_list.reverse()
     return torch.tensor(advantage_list, dtype=torch.float)
+
+def init_weights(m: torch.Module):
+    if isinstance(m, nn.Linear):
+        nn.init.kaiming_normal_(m.weight)
+        if m.bias is not None:
+            nn.init.zeros_(m.bias)
+    elif isinstance(m, nn.Conv2d):
+        nn.init.xavier_normal_(m.weight)
