@@ -18,6 +18,8 @@ from typing import Iterable, Tuple
 import warnings
 import sys
 
+from training_utils.model_utils import DQN_Log, calculate_gradient_norm
+
 # Add the slm_model directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 
@@ -26,9 +28,11 @@ import torch
 import torch.nn as nn
 from torch import Tensor, narrow
 import torch.nn.functional as F
+from torch.nn.utils import clip_grad_norm_
 import matplotlib.pyplot as plt
 import wandb
 from slm_model.slm_env import SingleSLMEnvParallel1D
+from training_utils.utils import IntstanceAvgMeter
 
 
 def to_device(x, device):
@@ -153,7 +157,7 @@ class DoubleDQN:
         return reduce(lambda x,y:torch.einsum("ia,ib->iab", x.flatten(1), y.flatten(1)).flatten(-1), 
                       tensors)
     
-    def update(self, transition_dict):
+    def update(self, transition_dict) -> DQN_Log:
         states = transition_dict["states"]
         actions = transition_dict["actions"]
         rewards = torch.tensor(transition_dict["rewards"]).to(self.device)
@@ -189,12 +193,21 @@ class DoubleDQN:
         
         self.optimizer.zero_grad()
         dqn_loss.backward()
+        
+        clip_grad_norm_(self.q_net.parameters(), 10)
+        grad_norm = calculate_gradient_norm(self.q_net)
+        
         self.optimizer.step()
         
         if (self.update_count+1) % self.target_update == 0:
             self.target_q_net.load_state_dict(self.q_net.state_dict())
         
         self.update_count += 1
+        
+        return DQN_Log(
+            loss=dqn_loss.item(),
+            grad_norm=grad_norm
+        )
 
 
 if __name__ == "__main__":
@@ -244,9 +257,10 @@ if __name__ == "__main__":
     agent = DoubleDQN(lr, gamma, epsilon, target_update, device, 
                       max_part=MAX_PART_TYPE, max_ori=MAX_ORIENTATION_NUM, max_batch=MAX_BATCH_NUM)
     
-    return_list = []
-    energy_list = []
-    instances_dict = {}
+    return_meter = IntstanceAvgMeter(window_size=200)
+    energy_meter = IntstanceAvgMeter(window_size=200)
+    loss_meter = IntstanceAvgMeter(window_size=2000)
+    grad_norm_meter = IntstanceAvgMeter(window_size=2000)
     
     env = SingleSLMEnvParallel1D(in_path="./instances_json/", phase="Train",
                                  max_part_type=MAX_PART_TYPE, max_batch_num=MAX_BATCH_NUM, max_orientation_num=MAX_ORIENTATION_NUM)
@@ -274,7 +288,7 @@ if __name__ == "__main__":
                     if replay_buffer.size() > minimal_size:
                         b_s, b_a, b_r, b_ns, b_d = replay_buffer.sample(batch_size)
                         # print(b_s.shape)
-                        agent.update(
+                        tmp_log = agent.update(
                             transition_dict=dict(
                                 states = to_device(b_s, device),
                                 actions = to_device(b_a, device),
@@ -284,25 +298,33 @@ if __name__ == "__main__":
                             )
                         )
                         
-                return_list.append(episode_return)
-                energy_list.append(env.solution.calculate_energy())
+                        loss_meter.update(instance, tmp_log.loss)
+                        grad_norm_meter.update(instance, tmp_log.grad_norm)
+                        
+                return_meter.update(instance, episode_return)
+                energy_meter.update(instance, env.solution.calculate_energy())
 
                 episode_id = int(num_episodes / 10 * i + i_episode + 1)
-                moving_avg_return = np.mean(return_list[-200:] if len(return_list) > 200 else np.mean(return_list))
-                moving_ene_return = np.mean(energy_list[-200:] if len(energy_list) > 200 else np.mean(energy_list))
                 
                 pbar.set_postfix({
                     "episode": f"{episode_id:4d}",
-                    "return": f"{f'{moving_avg_return:.6e}':12s}",
-                    "energy": f"{f'{moving_ene_return:.6e}':12s}"
+                    "return": f"{f'{return_meter.all_avg():.6e}':12s}",
+                    "energy": f"{f'{energy_meter.all_avg():.6e}':12s}",
+                    "loss": f"{f'{loss_meter.all_avg():.6e}':12s}",
+                    "grad_norm": f"{f'{grad_norm_meter.all_avg():.6e}':12s}",
                 })
-
-                instances_dict[instance] = 1 if instance not in instances_dict else instances_dict[instance]+1
                 
-                wandb.log({"Avg Episode Return": moving_avg_return, 
-                           "Avg Energy Return": moving_ene_return,
-                           f"{instance}": env.last_criterion,
-                           "epsilon": agent.epsilon}, step=episode_id)
+                wandb.log({"AvgEnergy/mean": energy_meter.all_avg(),
+                            "AvgEnergy/max": energy_meter.all_max_avg(),
+                            "AvgEnergy/min": energy_meter.all_min_avg(),
+                            "AvgReturn/mean": return_meter.all_avg(),
+                            "AvgReturn/max": return_meter.all_max_avg(),
+                            "AvgReturn/min": return_meter.all_min_avg(),
+                           f"Instances/{instance}": env.last_criterion,
+                            "epsilon": agent.epsilon, 
+                            "DQN/loss": loss_meter.all_avg(),
+                            "DQN/grad_norm": grad_norm_meter.all_avg()
+                          }, step=episode_id)
                 
                 pbar.update(1)
     
