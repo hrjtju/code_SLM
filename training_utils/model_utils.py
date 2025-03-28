@@ -32,7 +32,7 @@ def compute_advantage(gamma: float, lmbda: float, td_delta: Tensor) -> Tensor:
     advantage_list.reverse()
     return torch.tensor(advantage_list, dtype=torch.float)
 
-def init_weights_normal(m: torch.Module):
+def init_weights_normal(m: torch.nn.Module):
     if isinstance(m, nn.Linear):
         nn.init.kaiming_normal_(m.weight)
         if m.bias is not None:
@@ -40,7 +40,7 @@ def init_weights_normal(m: torch.Module):
     elif isinstance(m, nn.Conv2d):
         nn.init.xavier_normal_(m.weight)
 
-def init_weights_ortho(m: torch.Module):
+def init_weights_ortho(m: torch.nn.Module):
     if isinstance(m, (nn.Linear, nn.Conv2d)):
         nn.init.orthogonal_(m.weight)
         if m.bias is not None:
