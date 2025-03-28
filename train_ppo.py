@@ -1,3 +1,4 @@
+from ast import In
 import warnings
 import datetime
 import os
@@ -9,6 +10,7 @@ from rl_algorithms.rl_utils import ReplayBuffer, to_device
 from doubledqn_flat import DoubleDQN
 from rl_algorithms.ppo_test_flat import PPO, Transition
 from slm_model.slm_env import SingleSLMEnv, SingleSLMEnvParallel1D
+from training_utils.utils import IntstanceAvgMeter
 
 import wandb
 
@@ -65,12 +67,8 @@ agent = PPO(state_dim=923,
             env=env)
 
 now_str = str(datetime.datetime.now()).split('.')[0].replace(':', '_').replace(' ', '_')
-# os.mkdir(f'./tf-logs/{agent.__class__.__name__}_{now_str}')
-# writer = SummaryWriter(f'./tf-logs/{agent.__class__.__name__}_{now_str}')
 
-return_list = []
-energy_list = []
-instances_dict = {}
+energy_meter = IntstanceAvgMeter(window_size=200)
 
 
 for i in range(epochs):
@@ -94,34 +92,30 @@ for i in range(epochs):
                 state = next_state
                 episode_return += reward
                 
-            return_list.append(episode_return)
-            energy_list.append(env.last_criterion)
+            energy_meter.update(instance, env.last_criterion)
             
             episode_log = agent.update(transition)
 
             episode_id = int(num_episodes / 10 * i + i_episode + 1)
-            moving_avg_return = np.mean(return_list[-200:] if len(return_list) > 200 else np.mean(return_list))
-            moving_ene_return = np.mean(energy_list[-200:] if len(energy_list) > 200 else np.mean(energy_list))
             
             pbar.set_postfix({
                 "episode": f"{episode_id:4d}",
-                "return": f"{f'{moving_avg_return:.6e}':12s}",
-                "energy": f"{f'{moving_ene_return:.6e}':12s}",
+                "energy": f"{f'{energy_meter.all_avg():.6e}':12s}",
                 "avg_actor_loss": f"{f'{episode_log.avg_actor_loss:.6e}':12s}",
                 "avg_critic_loss": f"{f'{episode_log.avg_critic_loss:.6e}':12s}",
                 "avg_actor_grad_norm": f"{f'{episode_log.avg_actor_grad_norm:.6e}':12s}",
                 "avg_critic_grad_norm": f"{f'{episode_log.avg_critic_grad_norm:.6e}':12s}",
             })
-
-            instances_dict[instance] = 1 if instance not in instances_dict else instances_dict[instance]+1
             
-            wandb.log({"Avg Episode Return": moving_avg_return, 
-                        "Avg Energy Return": moving_ene_return,
-                        f"{instance}": env.last_criterion,
-                        "avg_actor_loss": episode_log.avg_actor_loss,
-                        "avg_critic_loss": episode_log.avg_critic_loss,
-                        "avg_actor_grad_norm": episode_log.avg_actor_grad_norm,
-                        "avg_critic_grad_norm": episode_log.avg_critic_grad_norm,
+            wandb.log({
+                        "AvgEnergy/mean": energy_meter.all_avg(),
+                        "AvgEnergy/max": energy_meter.all_max_avg(),
+                        "AvgEnergy/min": energy_meter.all_min_avg(),
+                        f"Instances/{instance}": env.last_criterion,
+                        "PPO/avg_actor_loss": episode_log.avg_actor_loss,
+                        "PPO/avg_critic_loss": episode_log.avg_critic_loss,
+                        "PPO/avg_actor_grad_norm": episode_log.avg_actor_grad_norm,
+                        "PPO/avg_critic_grad_norm": episode_log.avg_critic_grad_norm,
             })
             
             pbar.update(1)

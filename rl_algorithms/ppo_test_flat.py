@@ -14,32 +14,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from slm_model.slm_env import SingleSLMEnvParallel1D
-
-class PPO_Log(pydantic.BaseModel):
-    avg_actor_loss: float
-    avg_critic_loss: float
-    avg_actor_grad_norm: float
-    avg_critic_grad_norm: float
-
-
-def calculate_gradient_norm(model: torch.nn.Module) -> float:
-    total_norm = 0
-    parameters = [p for p in model.parameters() if p.grad is not None and p.requires_grad]
-    for p in parameters:
-        param_norm = p.grad.detach().data.norm(2)
-        total_norm += param_norm.item() ** 2
-    total_norm = total_norm ** 0.5
-    return total_norm
-
-def compute_advantage(gamma: float, lmbda: float, td_delta: Tensor) -> Tensor:
-    td_delta = td_delta.detach().numpy()
-    advantage_list = []
-    advantage = 0.0
-    for delta in td_delta[::-1]:
-        advantage = gamma * lmbda * advantage + delta
-        advantage_list.append(advantage)
-    advantage_list.reverse()
-    return torch.tensor(advantage_list, dtype=torch.float)
+from training_utils.model_utils import PPO_Log, calculate_gradient_norm, compute_advantage
 
 class Transition:
     def __init__(self, device) -> None:
@@ -264,9 +239,7 @@ class PPO:
             critic_loss = torch.mean(F.mse_loss(self.critic(states), td_target.detach()))
             
             avg_actor_loss_ls.append(actor_loss.item())
-            avg_critic_loss_ls.append(actor_loss.item())
-            avg_actor_grad_norm_ls.append(calculate_gradient_norm(self.actor))
-            avg_critic_grad_norm_ls.append(calculate_gradient_norm(self.critic))
+            avg_critic_loss_ls.append(critic_loss.item())
             
             self.actor_optimizer.zero_grad()
             self.critic_optimizer.zero_grad()
@@ -276,6 +249,9 @@ class PPO:
             
             clip_grad_norm_(self.actor.parameters(), 10)
             clip_grad_norm_(self.critic.parameters(), 10)
+            
+            avg_actor_grad_norm_ls.append(calculate_gradient_norm(self.actor))
+            avg_critic_grad_norm_ls.append(calculate_gradient_norm(self.critic))
 
             self.actor_optimizer.step()
             self.critic_optimizer.step()
