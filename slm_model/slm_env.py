@@ -325,6 +325,7 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         # if the phase is Test, choose the file indicated by the path.
         elif self.phase == "Test":
             # load the specified in_path
+            self.load_path = self.in_path
             self.slm_metadata = load_json_to_class(self.in_path)
             
         # Raise Error if self.phase is not among the two strings above.
@@ -450,7 +451,7 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
                           ppo=self.ppo
                           )
         elif self.phase == "Test":
-            exit(0)
+            return 
         else:
             raise NotImplementedError
         

@@ -11,13 +11,15 @@ from functools import reduce
 import os
 import random
 import collections
+import heapq
 from sympy import true
 import torch.utils
 from tqdm import tqdm
-from typing import Iterable, Tuple
+from typing import Iterable, List, Tuple
 import warnings
 import sys
 
+from joyrl.algos.base.buffer import PrioritizedReplayBufferQue
 from training_utils.model_utils import DQN_Log, calculate_gradient_norm, init_weights_normal
 
 # Add the slm_model directory to the Python path
@@ -46,7 +48,77 @@ def to_device(x, device):
 def repack(t: Tuple):
     return torch.stack(t, dim=0)
 
-class ReplayBuffer:
+from dataclasses import dataclass, field
+from typing import Any
+
+@dataclass(order=True)
+class PrioritizedItem:
+    priority: int
+    item: Tuple[Tuple[Tensor, Tensor, Tensor, Tensor, Tensor], int]=field(compare=False)
+
+
+class PrioritizedReplayBuffer:
+    """
+    Replay Buffer of tuples for DQN training
+    
+    1. 按照td-error的优先级进入，只保存较大td-error的条目
+    2. 根据时效性，周期删除 10% 较老的条目
+    """
+    def __init__(self, capacity: int) -> None:
+        self.buffer: List[PrioritizedItem] = []
+        self.num = 0
+        self.capacity = capacity
+        # self.seen = set()
+        self.in_num = 0
+    
+    # def hash_(self, tup: Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]) -> int:
+    #     return hash(tuple(torch.concat(tup, dim=0).reshape(-1).detach().numpy()))
+    
+    #! update to priority queue, using -|td_error| as priority
+    def add(self, state: Tensor, action: Tensor, reward: Tensor, next_state: Tensor, done: Tensor, abs_td_error: float):
+        priority = abs_td_error
+        tup = (state, action, reward, next_state, done)
+        
+        self.num += 1
+        self.in_num += 1
+        
+        # if self.hash_(tup) in self.seen:
+        #     for i in self.buffer:
+        #         if i.item == tup:
+        #             print(f"\nHash hit: {i.priority:.2f} --> {priority:.2f}")
+        #             i.priority = priority
+        #             i.item[1] = self.in_num
+        #             heapq.heapify(self.buffer)
+        #             break
+        # else:
+        self.num += 1
+        
+        # 先丢已经在里面的，这样就不会出现前期td-err大的一直占在里面，后面的进不来的情况
+        if self.num > self.capacity:
+            self.num = self.capacity
+            pop = heapq.heappop(self.buffer)
+            # self.seen.remove(self.hash_(pop.item[0]))
+            
+            if random.random() < 0.1:
+                print("\nRemoving old history ...")
+                self.buffer = sorted(self.buffer, key=lambda x:x.item[1])[self.capacity//10:]
+                self.num = len(self.buffer)
+                heapq.heapify(self.buffer)
+        
+        heapq.heappush(self.buffer, PrioritizedItem(priority=priority, item=(tup, self.in_num)))
+        # self.seen.add(self.hash_(tup))
+    
+    def sample(self, batch_size):
+        transitions = [i.item[0] for i in random.sample((self.buffer), batch_size)]
+        state, action, reward, next_state, done = zip(*transitions)
+        
+        return repack(state), repack(action), reward, repack(next_state), done
+    
+    def size(self):
+        return len(self.buffer)
+        
+
+class ClassicalReplayBuffer:
     """
     Replay Buffer of tuples for DQN training
     """
@@ -66,6 +138,16 @@ class ReplayBuffer:
 
     def size(self):
         return len(self.buffer)
+
+    
+    def sample(self, batch_size):
+        transitions = [i.item for i in random.sample((self.buffer), batch_size)]
+        state, action, reward, next_state, done = zip(*transitions)
+        
+        return repack(state), repack(action), reward, repack(next_state), done
+
+    def size(self):
+        return self.num
 
 class QNet(nn.Module):
     def __init__(self, 
@@ -132,10 +214,10 @@ class DoubleDQN:
         
         self.optimizer = torch.optim.Adam(self.q_net.parameters(), lr=lr)
         
-    def take_action(self, state):
+    def take_action(self, state, test: bool = False):
         
         # TODO: Check the two branches of these actions
-        if np.random.random() < self.epsilon:
+        if not test and np.random.random() < self.epsilon:
             action = (
                 torch.randn(self.max_part+self.max_ori+self.max_batch).abs() + 0.01
                 )
@@ -162,6 +244,26 @@ class DoubleDQN:
         return reduce(lambda x,y:torch.einsum("ia,ib->iab", x.flatten(1), y.flatten(1)).flatten(-1), 
                       tensors)
     
+    def get_td_target(self, state, action, reward, next_state, done, test=False):
+        net_state_output = self.q_net(state)
+        splitted_max_actions = self.split_actions(net_state_output)
+        splitted_done_actions = self.split_actions(action)
+        
+        max_action_sets = self.q_net(next_state)
+        target_action_sets = self.target_q_net(next_state)
+        splitted_max_actions_next = self.split_actions(max_action_sets)
+        splitted_max_actions_target = self.split_actions(target_action_sets)
+        
+        q_values = sum(map(lambda x:x[0].gather(1, x[1].max(1)[1].view(-1, 1)), zip(splitted_max_actions, splitted_done_actions)))
+        max_next_q = sum(map(lambda x:x[0].gather(1, x[1].max(1)[1].view(-1, 1)), zip(splitted_max_actions_target, splitted_max_actions_next)))
+        
+        q_targets = reward + self.gamma * max_next_q * (1 - done)
+        
+        if test:
+            return q_values.detach(), q_targets.detach()
+        else:
+            return q_values, q_targets.detach()
+    
     def update(self, transition_dict) -> DQN_Log:
         states = transition_dict["states"]
         actions = transition_dict["actions"]
@@ -169,34 +271,12 @@ class DoubleDQN:
         next_states = transition_dict["next_states"]
         dones = torch.tensor(transition_dict["dones"], dtype=torch.float32).to(self.device)
         
-        ## TODO: Split and apply addition to q values
-        net_state_output = self.q_net(states)
-        splitted_max_actions = self.split_actions(net_state_output)
-        splitted_done_actions = self.split_actions(actions)
-        # TODO: Split tensors into 3 parts and calculate q values individually
-        max_action_sets = self.q_net(next_states)
-        target_action_sets = self.target_q_net(next_states)
-        splitted_max_actions_next = self.split_actions(max_action_sets)
-        splitted_max_actions_target = self.split_actions(target_action_sets)
-        
-        # TODO: q value is defined as sum of largest q in part, orientation and batch.
-        q_values = sum(map(lambda x:x[0].gather(1, x[1].max(1)[1].view(-1, 1)), zip(splitted_max_actions, splitted_done_actions)))
-        max_next_q = sum(map(lambda x:x[0].gather(1, x[1].max(1)[1].view(-1, 1)), zip(splitted_max_actions_target, splitted_max_actions_next)))
-        
-        # ## TODO: OR split and apply kronecker product
-        # tensor_max_actions = self.batch_kronecker_product_flatten(splitted_max_actions)
-        # tensor_done_actions = self.batch_kronecker_product_flatten(splitted_done_actions)
-        # tensor_max_actions_next = self.batch_kronecker_product_flatten(splitted_max_actions_next)
-        # tensor_max_actions_target = self.batch_kronecker_product_flatten(splitted_max_actions_target)
-        
-        # q_values = tensor_max_actions.gather(1, tensor_done_actions.max(1)[1].view(-1, 1))
-        # max_next_q = tensor_max_actions_next.gather(1, tensor_max_actions_target.max(1)[1].view(-1, 1))
-        
-        q_targets = rewards + self.gamma * max_next_q * (1 - dones)
+        q_values, q_targets = self.get_td_target(states, actions, rewards, next_states, dones)
         
         dqn_loss = torch.mean(F.mse_loss(q_values, q_targets))
         
         self.optimizer.zero_grad()
+        
         dqn_loss.backward()
         
         clip_grad_norm_(self.q_net.parameters(), 10)
@@ -257,7 +337,7 @@ if __name__ == "__main__":
     MAX_ORIENTATION_NUM = 7
     MAX_BATCH_NUM = 20
     
-    replay_buffer = ReplayBuffer(buffer_size)
+    replay_buffer = PrioritizedReplayBuffer(buffer_size)
     
     agent = DoubleDQN(lr, gamma, epsilon, target_update, device, 
                       max_part=MAX_PART_TYPE, max_ori=MAX_ORIENTATION_NUM, max_batch=MAX_BATCH_NUM)
@@ -266,6 +346,8 @@ if __name__ == "__main__":
     energy_meter = IntstanceAvgMeter(window_size=200)
     loss_meter = IntstanceAvgMeter(window_size=2000)
     grad_norm_meter = IntstanceAvgMeter(window_size=2000)
+    
+    test_meter = IntstanceAvgMeter(window_size=10)
     
     env = SingleSLMEnvParallel1D(in_path="./instances_json/", phase="Train",
                                  max_part_type=MAX_PART_TYPE, max_batch_num=MAX_BATCH_NUM, max_orientation_num=MAX_ORIENTATION_NUM)
@@ -280,12 +362,25 @@ if __name__ == "__main__":
                 
                 while not done:
                     
-                    action = agent.take_action(state.to(device))
+                    action = agent.take_action(state.to(device), test=False)
                     next_state, reward, terminate, truncate, _ = env.step(action)
                     done = terminate or truncate
                     
-                    replay_buffer.add(*list(map(lambda x: to_device(x, "cpu"), [state, action, reward, next_state, done])))
-                    # replay_buffer.add(state, action, reward, next_state, done)
+                    # TODO: Calculate TD_error
+                    q_value, q_target = agent.get_td_target(state.to(device).reshape(1, -1), 
+                                                            action.to(device).reshape(1, -1), 
+                                                            torch.tensor([[reward]], device=device), 
+                                                            next_state.to(device).reshape(1, -1), 
+                                                            torch.tensor([[done]], device=device).float(),
+                                                            test=True
+                                                            )
+                        
+                    td_err = torch.sum(torch.abs(q_value - q_target)).item()
+                    
+                    if any((not isinstance(i, torch.Tensor)) for i in [state, action, next_state]):
+                        ...
+                        
+                    replay_buffer.add(*list(map(lambda x: to_device(x, "cpu").reshape(-1), [state, action, torch.Tensor([reward]), next_state, torch.Tensor([done])])), td_err)
                     
                     state = next_state
                     episode_return += reward
@@ -325,12 +420,35 @@ if __name__ == "__main__":
                             "AvgReturn/mean": return_meter.all_avg(),
                             "AvgReturn/max": return_meter.all_max_avg(),
                             "AvgReturn/min": return_meter.all_min_avg(),
-                           f"Instances/{instance}": env.last_criterion,
                             "epsilon": agent.epsilon, 
                             "DQN/loss": loss_meter.all_avg(),
                             "DQN/grad_norm": grad_norm_meter.all_avg()
                           }, step=episode_id)
                 
+                if i_episode % 500 == 0:
+                    
+                    
+                    # test model with greedy action-selection
+                    for instance_f in os.listdir("./instances_json/"):
+                        test_env = SingleSLMEnvParallel1D(in_path=f"./instances_json/{instance_f}", phase="Test",
+                                    max_part_type=MAX_PART_TYPE, max_batch_num=MAX_BATCH_NUM, max_orientation_num=MAX_ORIENTATION_NUM)
+                        
+                        state_, instance_ = test_env.curr_state, test_env.in_path
+                        done = False
+                        
+                        with torch.no_grad():
+                            while not done:
+                                action = agent.take_action(state_.to(device), test=True)
+                                next_state, _, terminate, truncate, _ = test_env.step(action)
+                                done = terminate or truncate
+                                
+                                state = next_state
+                            
+                            test_meter.update(os.path.basename(instance_), test_env.solution.calculate_energy())
+                    
+                    wandb.log(test_meter.dict_avg("Instances/"))
+                            
+                            
                 pbar.update(1)
     
     now_str = datetime.datetime.now().strftime(r"%Y-%m-%d_%H-%M-%S")

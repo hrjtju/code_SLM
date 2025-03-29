@@ -1,6 +1,6 @@
 from collections import deque, defaultdict
 from numbers import Number
-from typing import Iterable, List
+from typing import Dict, Iterable, List
 from functools import partial
 
 class IntstanceAvgMeter:
@@ -17,6 +17,9 @@ class IntstanceAvgMeter:
     def instance_avg(self, key: str) -> float:
         return self._mean(self.results[key])
 
+    def dict_avg(self, key_prefix: str = "") -> Dict[str, float]:
+        return {f"{key_prefix}{k}":self._mean(v) for (k,v) in self.results.items()}
+        
     def all_avg(self) -> float:
         return self._mean([self.instance_avg(key) for key in self.results.keys() if self.results[key]])
     
