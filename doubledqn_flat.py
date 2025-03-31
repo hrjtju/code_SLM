@@ -223,7 +223,7 @@ class DoubleDQN:
         if not test and np.random.random() < self.epsilon:
             action = (
                 torch.randn(self.max_part+self.max_ori+self.max_batch).abs() + 0.01
-                )
+                ).to(self.device)
             
             if np.random.random() < self.epsilon:
                 self.epsilon = max(0.05, self.epsilon * 0.99999)
@@ -288,7 +288,7 @@ class DoubleDQN:
         
         dqn_loss.backward()
         
-        clip_grad_norm_(self.q_net.parameters(), 10)
+        clip_grad_norm_(self.q_net.parameters(), 100)
         grad_norm = calculate_gradient_norm(self.q_net)
         
         self.optimizer.step()
@@ -313,7 +313,7 @@ if __name__ == "__main__":
         config={
             "actions_type": "part-orientation-batch, tensor",
             "criterion": "energy-diff",
-            "lr": 5e-3,
+            "lr": 0.01,
             "num_episodes": 50000,
             "hidden_dim": 128,
             "gamma": 1.00,
@@ -322,24 +322,25 @@ if __name__ == "__main__":
             "target_update": 5,
             "buffer_size": 50000,
             "minimal_size": 600,
-            "batch_size": 64,
+            "batch_size": 256,
             "device": "cuda",
             "max_part_type": 20,
             "max_orientation_num": 7,
             "max_batch_num": 20,
+            "cuda_grad_norm": 100,
             "time": datetime.datetime.now().strftime(r"%Y-%m-%d %H:%M:%S")
         },
     )
     
     lr = 0.01
-    num_episodes = 50000
+    num_episodes = 100000
     hidden_dim = 128
     gamma = 1.00
     epsilon = 0.5 # 0.05
     target_update = 5
     buffer_size = 50000
     minimal_size = 600
-    batch_size = 64
+    batch_size = 256
     device = torch.device("cuda")
     
     MAX_PART_TYPE = 20
