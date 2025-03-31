@@ -15,11 +15,10 @@ import heapq
 from sympy import true
 import torch.utils
 from tqdm import tqdm
-from typing import Iterable, List, Tuple
+from typing import List, Tuple
 import warnings
 import sys
 
-from joyrl.algos.base.buffer import PrioritizedReplayBufferQue
 from training_utils.model_utils import DQN_Log, calculate_gradient_norm, init_weights_normal
 
 # Add the slm_model directory to the Python path
@@ -116,6 +115,10 @@ class PrioritizedReplayBuffer:
     
     def size(self):
         return len(self.buffer)
+    
+    def get_priority_dist(self) -> Tuple[float, float]:
+        arr = np.array([i.priority for i in self.buffer])
+        return arr.mean(), arr.std()
         
 
 class ClassicalReplayBuffer:
@@ -214,7 +217,7 @@ class DoubleDQN:
         
         self.optimizer = torch.optim.Adam(self.q_net.parameters(), lr=lr)
         
-    def take_action(self, state, test: bool = False):
+    def take_action(self, state: torch.Tensor, curr_mask: torch.Tensor, test: bool = False):
         
         # TODO: Check the two branches of these actions
         if not test and np.random.random() < self.epsilon:
@@ -227,7 +230,13 @@ class DoubleDQN:
         else:
             action = self.q_net(state)
         
-        return action
+        part_d, ori_d, batch_d = self.split_actions(action)
+        
+        part_d[~torch.sum(curr_mask, dim=(-1, -2)).bool()] = -torch.inf
+        ori_d[~torch.sum(curr_mask[part:=part_d.argmax(-1)], dim=-1).bool()] = -torch.inf
+        batch_d[~curr_mask[part, ori_d.argmax(-1)].bool()] = -torch.inf
+        
+        return torch.concat([part_d, ori_d, batch_d])
 
     def split_actions(self, a: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         """
@@ -362,7 +371,7 @@ if __name__ == "__main__":
                 
                 while not done:
                     
-                    action = agent.take_action(state.to(device), test=False)
+                    action = agent.take_action(state.to(device), env.mask_tensor.to(device), test=False)
                     next_state, reward, terminate, truncate, _ = env.step(action)
                     done = terminate or truncate
                     
@@ -414,6 +423,8 @@ if __name__ == "__main__":
                     "grad_norm": f"{f'{grad_norm_meter.all_avg():.6e}':12s}",
                 })
                 
+                td_err_mean, td_err_std = replay_buffer.get_priority_dist()
+                
                 wandb.log({"AvgEnergy/mean": energy_meter.all_avg(),
                             "AvgEnergy/max": energy_meter.all_max_avg(),
                             "AvgEnergy/min": energy_meter.all_min_avg(),
@@ -422,7 +433,10 @@ if __name__ == "__main__":
                             "AvgReturn/min": return_meter.all_min_avg(),
                             "epsilon": agent.epsilon, 
                             "DQN/loss": loss_meter.all_avg(),
-                            "DQN/grad_norm": grad_norm_meter.all_avg()
+                            "DQN/grad_norm": grad_norm_meter.all_avg(),
+                            "DQN/fail_allocate_num": env.fail_allocate_num, # TODO: Check failed allocation num, and its relation to loss
+                            "ReplayBuffer/TD_Error_Mean": td_err_mean,
+                            "ReplayBuffer/TD_Error_Std": td_err_std,
                           }, step=episode_id)
                 
                 if i_episode % 500 == 0:
@@ -438,7 +452,7 @@ if __name__ == "__main__":
                         
                         with torch.no_grad():
                             while not done:
-                                action = agent.take_action(state_.to(device), test=True)
+                                action = agent.take_action(state_.to(device), test_env.mask_tensor.to(device), test=True)
                                 next_state, _, terminate, truncate, _ = test_env.step(action)
                                 done = terminate or truncate
                                 

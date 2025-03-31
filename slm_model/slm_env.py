@@ -316,6 +316,8 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         self.max_orientation_num = max_orientation_num
         self.max_batch_num = max_batch_num
         
+        self.fail_allocate_num: int = 0
+        
         # randomly pick a json file in the training dir
         # and pack the training data into a class
         if self.phase == "Train":
@@ -507,10 +509,12 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         
         penalty = 0
         success = False
+        self.fail_allocate_num = 0
         
         # print(f"{self.ppo=}")
         
         if not self.ppo:
+            # TODO: 考虑使用 combinations 改写？
             for part_id in torch.argsort(part, descending=True):
                 if success:
                     break
@@ -533,6 +537,8 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
                             if self.done():
                                 terminated = True
                             break
+                        else:
+                            self.fail_allocate_num += 1
         else:
             new_view, success, penalty_tmp = self.solution.add_part(part=self.slm_metadata.parts[part], 
                                                                     orientation=ori, 
