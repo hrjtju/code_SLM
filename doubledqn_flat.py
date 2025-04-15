@@ -311,6 +311,7 @@ if __name__ == "__main__":
     wandb.init(
         project="slmflat-doubledqn",
         config={
+            "name": (trial_name:="slmflat-doubledqn-penalty2-bs64-lr01"),
             "actions_type": "part-orientation-batch, tensor",
             "criterion": "energy-diff",
             "lr": 0.01,
@@ -442,7 +443,6 @@ if __name__ == "__main__":
                 
                 if i_episode % 500 == 0:
                     
-                    
                     # test model with greedy action-selection
                     for instance_f in os.listdir("./instances_json/"):
                         test_env = SingleSLMEnvParallel1D(in_path=f"./instances_json/{instance_f}", phase="Test",
@@ -466,5 +466,5 @@ if __name__ == "__main__":
                             
                 pbar.update(1)
     
-    now_str = datetime.datetime.now().strftime(r"%Y-%m-%d_%H-%M-%S")
-    torch.save(agent.q_net.state_dict(), f"./model_params/{env.__class__.__name__}_{agent.__class__.__name__}_{now_str}.pt")
+        now_str = datetime.datetime.now().strftime(r"%Y-%m-%d_%H-%M-%S")
+        torch.save(agent.q_net.state_dict(), f"./model_params/{trial_name}_{i}_{now_str}.pt")
