@@ -60,6 +60,7 @@ class PrioritizedItem:
 
 
 class Arguments:
+    mask: bool
     lr: float
     penalty: float
     num_episodes: int
@@ -182,6 +183,7 @@ class QNet(nn.Module):
                  max_part: int = 20, 
                  max_ori: int = 7, 
                  device: torch.device = "cpu",
+                 mask: bool = False
                  ) -> None:
         super(QNet, self).__init__()
         
@@ -224,10 +226,10 @@ class DoubleDQN:
         self.update_count = 0
         self.device = device
         
-        self.q_net = QNet(self.max_part, self.max_ori, self.device).to(self.device)
+        self.q_net = QNet(self.max_part, self.max_ori, self.device, args.mask).to(self.device)
         self.q_net.apply(init_weights_normal)
         
-        self.target_q_net = QNet(self.max_part, self.max_ori, self.device).to(self.device)
+        self.target_q_net = QNet(self.max_part, self.max_ori, self.device, args.mask).to(self.device)
         self.q_net.apply(init_weights_normal)
         
         self.optimizer = torch.optim.Adam(self.q_net.parameters(), lr=args.lr)
@@ -247,9 +249,10 @@ class DoubleDQN:
         
         part_d, ori_d, batch_d = self.split_actions(action)
         
-        part_d[~torch.sum(curr_mask, dim=(-1, -2)).bool()] = -torch.inf
-        ori_d[~torch.sum(curr_mask[part:=part_d.argmax(-1)], dim=-1).bool()] = -torch.inf
-        batch_d[~curr_mask[part, ori_d.argmax(-1)].bool()] = -torch.inf
+        if self.mask:
+            part_d[~torch.sum(curr_mask, dim=(-1, -2)).bool()] = -torch.inf
+            ori_d[~torch.sum(curr_mask[part:=part_d.argmax(-1)], dim=-1).bool()] = -torch.inf
+            batch_d[~curr_mask[part, ori_d.argmax(-1)].bool()] = -torch.inf
         
         return torch.concat([part_d, ori_d, batch_d])
 
@@ -325,6 +328,7 @@ def parse_args() -> Arguments:
     
     parser = argparse.ArgumentParser(description="DQN training")
     
+    parser.add_argument("--mask", action="store_true", help="Use mask for action selection")
     parser.add_argument("--lr", type=float, default=0.01, help="Learning rate")
     parser.add_argument("--penalty", type=float, default=0.1, help="Penalty for invalid actions")
     parser.add_argument("--num_episodes", type=int, default=100000, help="Number of episodes")
