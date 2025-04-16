@@ -328,7 +328,7 @@ def parse_args() -> Arguments:
     
     parser = argparse.ArgumentParser(description="DQN training")
     
-    parser.add_argument("--mask", action="store_true", help="Use mask for action selection")
+    parser.add_argument("--mask", type=bool, default=False, help="Use mask for action selection")
     parser.add_argument("--lr", type=float, default=0.01, help="Learning rate")
     parser.add_argument("--penalty", type=float, default=0.1, help="Penalty for invalid actions")
     parser.add_argument("--num_episodes", type=int, default=100000, help="Number of episodes")
@@ -391,10 +391,13 @@ if __name__ == "__main__":
             "max_orientation_num": args.max_orientation_num,
             "max_batch_num": args.max_batch_num,
             "clip_grad_norm": args.clip_grad_norm,
+            "penalty": args.penalty,
+            "train_dir": args.train_dir,
+            "eval_dir": args.eval_dir,
+            "mask": args.mask,
             "time": datetime.datetime.now().strftime(r"%Y-%m-%d %H:%M:%S")
         },
     )
-    
     replay_buffer = PrioritizedReplayBuffer(buffer_size)
     
     agent = DoubleDQN(device, args)
