@@ -302,6 +302,7 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
                  max_batch_num: int = 20,
                  seed: float = 0,
                  ppo: bool = False,
+                 penalty: float = 0,
                  **kwargs
                  ):
         
@@ -315,6 +316,8 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         self.max_part_type = max_part_type
         self.max_orientation_num = max_orientation_num
         self.max_batch_num = max_batch_num
+        
+        self.penalty = penalty
         
         self.fail_allocate_num: int = 0
         
@@ -550,10 +553,10 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
                 if self.done():
                     terminated = True
                     
-            penalty_tmp = penalty_tmp * 10 
+            penalty = penalty_tmp 
         
         criterion = self.solution.calculate_energy()
-        reward = self.last_criterion - criterion - penalty
+        reward = self.last_criterion - criterion - penalty * self.penalty
         self.last_criterion = criterion
 
         self.update_mask()

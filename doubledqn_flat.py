@@ -61,6 +61,7 @@ class PrioritizedItem:
 
 class Arguments:
     lr: float
+    penalty: float
     num_episodes: int
     hidden_dim: int
     gamma: float
@@ -325,6 +326,7 @@ def parse_args() -> Arguments:
     parser = argparse.ArgumentParser(description="DQN training")
     
     parser.add_argument("--lr", type=float, default=0.01, help="Learning rate")
+    parser.add_argument("--penalty", type=float, default=0.1, help="Penalty for invalid actions")
     parser.add_argument("--num_episodes", type=int, default=100000, help="Number of episodes")
     parser.add_argument("--hidden_dim", type=int, default=128, help="Hidden dimension")
     parser.add_argument("--gamma", type=float, default=1.00, help="Discount factor")
@@ -401,7 +403,8 @@ if __name__ == "__main__":
     test_meter = IntstanceAvgMeter(window_size=10)
     
     env = SingleSLMEnvParallel1D(in_path=args.train_dir, phase="Train",
-                                 max_part_type=MAX_PART_TYPE, max_batch_num=MAX_BATCH_NUM, max_orientation_num=MAX_ORIENTATION_NUM)
+                                 max_part_type=MAX_PART_TYPE, max_batch_num=MAX_BATCH_NUM, max_orientation_num=MAX_ORIENTATION_NUM,
+                                 penalty=args.penalty)
     env_name = env.name
     
     for i in range(10):
