@@ -3,6 +3,8 @@ Ruijie He
 
 Reference: https://hrl.boyuai.com/chapter/2/dqn%E6%94%B9%E8%BF%9B%E7%AE%97%E6%B3%95
 
+* Version: 0.1.0: 20250415, by Ruijie He, Double DQN with prioritized replay buffer
+
 """
 
 
@@ -153,6 +155,8 @@ class ClassicalReplayBuffer:
         return self.num
 
 class QNet(nn.Module):
+    version = "0.1.0"
+    
     def __init__(self, 
                  max_part: int = 20, 
                  max_ori: int = 7, 
@@ -194,7 +198,6 @@ class DoubleDQN:
                  max_ori: int = 7, 
                  max_batch: int = 20,
                  view_shape: Tuple[int, int] = (224, 224),
-                 
                  ) -> None:
         
         self.max_part = max_part
@@ -243,10 +246,11 @@ class DoubleDQN:
         Split action tensor into part, orientation and batch part.
         """
         # a: [batch+_size, MAX_PART_TYPE + MAX_ORIENTATION_NUM + MAX_BATCH_NUM]
+        
         return (
-            a.narrow(-1, 0, MAX_PART_TYPE),
-            a.narrow(-1, MAX_PART_TYPE, MAX_ORIENTATION_NUM),
-            a.narrow(-1, MAX_PART_TYPE+MAX_ORIENTATION_NUM, MAX_BATCH_NUM)
+            a.narrow(-1, 0, self.max_part),
+            a.narrow(-1, self.max_part, self.max_ori),
+            a.narrow(-1, self.max_part+self.max_ori, self.max_batch)
         )
     
     def batch_kronecker_product_flatten(self, tensors) -> Tensor:
@@ -465,6 +469,6 @@ if __name__ == "__main__":
                             
                             
                 pbar.update(1)
-    
+        
         now_str = datetime.datetime.now().strftime(r"%Y-%m-%d_%H-%M-%S")
         torch.save(agent.q_net.state_dict(), f"./model_params/{trial_name}_{i}_{now_str}.pt")
