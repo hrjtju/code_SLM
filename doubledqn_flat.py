@@ -17,9 +17,10 @@ import heapq
 from sympy import true
 import torch.utils
 from tqdm import tqdm
-from typing import List, Tuple
+from typing import List, Literal, Tuple
 import warnings
 import sys
+import argparse
 
 from training_utils.model_utils import DQN_Log, calculate_gradient_norm, init_weights_normal
 
@@ -58,6 +59,25 @@ class PrioritizedItem:
     item: Tuple[Tuple[Tensor, Tensor, Tensor, Tensor, Tensor], int]=field(compare=False)
 
 
+class Arguments:
+    lr: float
+    num_episodes: int
+    hidden_dim: int
+    gamma: float
+    epsilon: float
+    target_update: int
+    buffer_size: int
+    minimal_size: int
+    batch_size: int
+    max_part_type: int
+    max_orientation_num: int
+    max_batch_num: int
+    clip_grad_norm: float
+    train_dir: str
+    eval_dir: str
+    trial_name: str
+    
+    
 class PrioritizedReplayBuffer:
     """
     Replay Buffer of tuples for DQN training
@@ -160,14 +180,12 @@ class QNet(nn.Module):
     def __init__(self, 
                  max_part: int = 20, 
                  max_ori: int = 7, 
-                 view_shape: Tuple[int, int] = (224, 224),
                  device: torch.device = "cpu",
                  ) -> None:
         super(QNet, self).__init__()
         
         self.max_part = max_part
         self.max_ori = max_ori
-        self.view_shape = view_shape
         self.device = device
         
         self.policy = nn.Sequential(
@@ -189,36 +207,29 @@ class QNet(nn.Module):
         
 class DoubleDQN:
     def __init__(self, 
-                 lr: float, 
-                 gamma: float, 
-                 epsilon: float, 
-                 target_update: int, 
                  device: torch.device,
-                 max_part: int = 20, 
-                 max_ori: int = 7, 
-                 max_batch: int = 20,
-                 view_shape: Tuple[int, int] = (224, 224),
+                 args: Arguments = None,
                  ) -> None:
         
-        self.max_part = max_part
-        self.max_ori = max_ori
-        self.max_batch = max_batch
-        self.view_shape = view_shape
+        self.max_part = args.max_part_type
+        self.max_ori = args.max_orientation_num
+        self.max_batch = args.max_batch_num
         
-        self.gamma = gamma
-        self.epsilon = epsilon
-        self.target_update = target_update
+        self.gamma = args.gamma
+        self.epsilon = args.epsilon
+        self.target_update = args.target_update
+        self.clip_grad_norm = args.clip_grad_norm
         
         self.update_count = 0
         self.device = device
         
-        self.q_net = QNet(self.max_part, self.max_ori, self.view_shape, self.device).to(self.device)
+        self.q_net = QNet(self.max_part, self.max_ori, self.device).to(self.device)
         self.q_net.apply(init_weights_normal)
         
-        self.target_q_net = QNet(self.max_part, self.max_ori, self.view_shape, self.device).to(self.device)
+        self.target_q_net = QNet(self.max_part, self.max_ori, self.device).to(self.device)
         self.q_net.apply(init_weights_normal)
         
-        self.optimizer = torch.optim.Adam(self.q_net.parameters(), lr=lr)
+        self.optimizer = torch.optim.Adam(self.q_net.parameters(), lr=args.lr)
         
     def take_action(self, state: torch.Tensor, curr_mask: torch.Tensor, test: bool = False):
         
@@ -292,7 +303,7 @@ class DoubleDQN:
         
         dqn_loss.backward()
         
-        clip_grad_norm_(self.q_net.parameters(), 100)
+        clip_grad_norm_(self.q_net.parameters(), self.clip_grad_norm)
         grad_norm = calculate_gradient_norm(self.q_net)
         
         self.optimizer.step()
@@ -308,54 +319,79 @@ class DoubleDQN:
         )
 
 
+
+def parse_args() -> Arguments:
+    
+    parser = argparse.ArgumentParser(description="DQN training")
+    
+    parser.add_argument("--lr", type=float, default=0.01, help="Learning rate")
+    parser.add_argument("--num_episodes", type=int, default=100000, help="Number of episodes")
+    parser.add_argument("--hidden_dim", type=int, default=128, help="Hidden dimension")
+    parser.add_argument("--gamma", type=float, default=1.00, help="Discount factor")
+    parser.add_argument("--epsilon", type=float, default=0.5, help="Epsilon for epsilon-greedy action selection")
+    parser.add_argument("--target_update", type=int, default=5, help="Target network update frequency")
+    parser.add_argument("--buffer_size", type=int, default=50000, help="Replay buffer size")
+    parser.add_argument("--minimal_size", type=int, default=600, help="Minimal size for sampling")
+    parser.add_argument("--batch_size", type=int, default=256, help="Batch size for training")
+    parser.add_argument("--max_part_type", type=int, default=20, help="Max part type")
+    parser.add_argument("--max_orientation_num", type=int, default=7, help="Max orientation number")
+    parser.add_argument("--max_batch_num", type=int, default=20, help="Max batch number")
+    parser.add_argument("--clip_grad_norm", type=float, default=100.0, help="Gradient clipping norm")
+    parser.add_argument("--train_dir", type=str, default="./instances_json/", help="Directory for training instances")
+    parser.add_argument("--eval_dir", type=str, default="./instances_json/", help="Directory for testing instances")
+    parser.add_argument("--trial_name", type=str, required=True, help="Trial name for saving model")
+    
+    return parser.parse_args()
+
 if __name__ == "__main__":
     
     warnings.filterwarnings("ignore")
     
+    args = parse_args()
+    
+    lr = args.lr
+    num_episodes = args.num_episodes
+    hidden_dim = args.hidden_dim
+    gamma = args.gamma
+    epsilon = args.epsilon
+    target_update = args.target_update
+    buffer_size = args.buffer_size
+    minimal_size = args.minimal_size
+    batch_size = args.batch_size
+    clip_grad_norm = args.clip_grad_norm
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    MAX_PART_TYPE = args.max_part_type
+    MAX_ORIENTATION_NUM = args.max_orientation_num
+    MAX_BATCH_NUM = args.max_batch_num
+    
     wandb.init(
         project="slmflat-doubledqn",
         config={
-            "name": (trial_name:="slmflat-doubledqn-penalty2-bs64-lr01"),
+            "name": (trial_name:=args.trial_name),
             "actions_type": "part-orientation-batch, tensor",
             "criterion": "energy-diff",
-            "lr": 0.01,
-            "num_episodes": 50000,
-            "hidden_dim": 128,
-            "gamma": 1.00,
-            "epsilon_start": 0.5,
-            "epsilon_rate": 0.999,
-            "target_update": 5,
-            "buffer_size": 50000,
-            "minimal_size": 600,
-            "batch_size": 256,
-            "device": "cuda",
-            "max_part_type": 20,
-            "max_orientation_num": 7,
-            "max_batch_num": 20,
-            "cuda_grad_norm": 100,
+            "lr": args.lr,
+            "num_episodes": args.num_episodes,
+            "hidden_dim": args.hidden_dim,
+            "gamma": args.gamma,
+            "epsilon_start": args.epsilon,
+            "target_update": args.target_update,
+            "buffer_size": args.buffer_size,
+            "minimal_size": args.minimal_size,
+            "batch_size": args.batch_size,
+            "device": "cuda" if torch.cuda.is_available() else "cpu",
+            "max_part_type": args.max_part_type,
+            "max_orientation_num": args.max_orientation_num,
+            "max_batch_num": args.max_batch_num,
+            "clip_grad_norm": args.clip_grad_norm,
             "time": datetime.datetime.now().strftime(r"%Y-%m-%d %H:%M:%S")
         },
     )
     
-    lr = 0.01
-    num_episodes = 100000
-    hidden_dim = 128
-    gamma = 1.00
-    epsilon = 0.5 # 0.05
-    target_update = 5
-    buffer_size = 50000
-    minimal_size = 600
-    batch_size = 256
-    device = torch.device("cuda")
-    
-    MAX_PART_TYPE = 20
-    MAX_ORIENTATION_NUM = 7
-    MAX_BATCH_NUM = 20
-    
     replay_buffer = PrioritizedReplayBuffer(buffer_size)
     
-    agent = DoubleDQN(lr, gamma, epsilon, target_update, device, 
-                      max_part=MAX_PART_TYPE, max_ori=MAX_ORIENTATION_NUM, max_batch=MAX_BATCH_NUM)
+    agent = DoubleDQN(device, args)
     
     return_meter = IntstanceAvgMeter(window_size=200)
     energy_meter = IntstanceAvgMeter(window_size=200)
@@ -364,7 +400,7 @@ if __name__ == "__main__":
     
     test_meter = IntstanceAvgMeter(window_size=10)
     
-    env = SingleSLMEnvParallel1D(in_path="./instances_json/", phase="Train",
+    env = SingleSLMEnvParallel1D(in_path=args.train_dir, phase="Train",
                                  max_part_type=MAX_PART_TYPE, max_batch_num=MAX_BATCH_NUM, max_orientation_num=MAX_ORIENTATION_NUM)
     env_name = env.name
     
@@ -448,8 +484,8 @@ if __name__ == "__main__":
                 if i_episode % 500 == 0:
                     
                     # test model with greedy action-selection
-                    for instance_f in os.listdir("./instances_json/"):
-                        test_env = SingleSLMEnvParallel1D(in_path=f"./instances_json/{instance_f}", phase="Test",
+                    for instance_f in os.listdir(args.eval_dir):
+                        test_env = SingleSLMEnvParallel1D(in_path=f"{args.eval_dir}/{instance_f}", phase="Test",
                                     max_part_type=MAX_PART_TYPE, max_batch_num=MAX_BATCH_NUM, max_orientation_num=MAX_ORIENTATION_NUM)
                         
                         state_, instance_ = test_env.curr_state, test_env.in_path
