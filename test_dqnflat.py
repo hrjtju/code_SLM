@@ -148,7 +148,7 @@ for _ in range(args.test_num if (args.mode != "greedy") else 1):
                 continue
             
             
-            test_env.solution.show(out_dir=f"./solution/dqnflat_{Arguments.__str__(args)}_{instance_f.split('.')[0]}")
+            test_env.solution.show(out_dir=f"./solution/dqnflat_{Arguments.__str__(args)}/{instance_f.split('.')[0]}")
             
             results.append(test_env.solution.calculate_energy())
             

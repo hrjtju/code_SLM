@@ -7,6 +7,7 @@ from math import ceil, floor
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import squarify
 
 from slm_model.slm_classes import Machine, Part, Process
 from slm_model.bin_packing import allocate_bin_packing_2d
@@ -377,7 +378,10 @@ class BatchParallel1D(Batch):
         print(f"Energy: {calculate_batch_energy(self)['EPC']}", file=fp)
     
     def show_view(self, dir: str) -> None:
+        self.parts_info.sort(key=lambda x: x["L"] * x["W"], reverse=True)
+        
         plt.figure(dpi=200, figsize=(12, 10))
+        plt.suptitle("Batch Summary")
         
         # show the distribution of hights of the parts in this batch
         plt.subplot(2, 2, 1)
@@ -407,60 +411,29 @@ class BatchParallel1D(Batch):
         plt.grid()
         
         
-        # Draw a rectangle treemap
-        part_areas = [part["L"] * part["W"] for part in self.parts_info]
-        part_heights = [part["H"] for part in self.parts_info]
-        part_orientations = [part['O'] for part in self.parts_info]
-        part_categories = [part["type"] for part in self.parts_info]
-
-        # Normalize heights for color mapping
-        norm = Normalize(vmin=min(part_heights), vmax=max(part_heights))
-        cmap = plt.cm.Blues
-
-        # Create treemap
-        plt.subplot(2, 2, 4)
-        plt.title("Rectangle Treemap")
-        plt.axis("off")
-
-        current_x, current_y = 0, 0
-        max_row_height = 0
-        total_width = sum(part_areas) ** 0.5  # Approximate width for layout
-
-        for i, area in enumerate(part_areas):
-            width = area ** 0.5
-            height = area / width
-
-            # Check if we need to move to the next row
-            if current_x + width > total_width:
-                current_x = 0
-                current_y += max_row_height
-                max_row_height = 0
-
-            # Draw rectangle
-            color = cmap(norm(part_heights[i]))
-            rect = Rectangle((current_x, current_y), width, height, facecolor=color, edgecolor="black")
-            plt.gca().add_patch(rect)
-
-            # Add text for category and orientation
-            plt.text(
-            current_x + width / 2,
-            current_y + height / 2,
-            f"{part_categories[i]}\n{part_orientations[i]}",
-            ha="center",
-            va="center",
-            fontsize=6,
-            color="black",
-            )
-
-            # Update positions
-            current_x += width
-            max_row_height = max(max_row_height, height)
-
-        # Add colorbar for height
-        sm = ScalarMappable(cmap=cmap, norm=norm)
-        sm.set_array([])
-        plt.colorbar(sm, ax=plt.gca(), orientation="vertical", label="Height (mm)")
+        # Treemap of batch occupation
+        sizes_ls = part_proj_area_ls + [self.get_rest_area()]
+        cmap = plt.get_cmap("Blues")
+        color_ls = [cmap(i / max(part_height_ls)) for i in part_height_ls] + ["red"]
+        label_ls = [f"{int(part['type'])}:{part['O']}" for part in self.parts_info] + [""]
         
+        ax = plt.subplot(2, 2, 4)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        
+        squarify.plot(
+            sizes=sizes_ls,
+            label=label_ls,
+            color=color_ls,
+            text_kwargs={
+                'color':'orange',
+                'fontweight':'bold'
+            },
+            ax=ax
+        )
+        plt.title("Batch Occupation")
+        
+        plt.tight_layout()
         plt.savefig(dir)
         plt.close()
         
@@ -520,7 +493,7 @@ class SolutionParallel1D(Solution):
     
     def show(self, out_dir: str = f"./solution/") -> None:
         if not os.path.exists(out_dir):
-            os.mkdir(out_dir)
+            os.makedirs(out_dir)
         
         with open(os.path.join(out_dir, "assignment.txt"), 'w') as f:
             print(f"\n\t {self.instance_name} \n", file=f)
