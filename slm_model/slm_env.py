@@ -453,7 +453,8 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
                           max_orientation_num=self.max_orientation_num,
                           max_batch_num=self.max_batch_num,
                           seed=random.random(),
-                          ppo=self.ppo
+                          ppo=self.ppo,
+                          penalty=self.penalty
                           )
         elif self.phase == "Test":
             return 
@@ -553,7 +554,7 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
                 if self.done():
                     terminated = True
                     
-            penalty = penalty_tmp 
+            penalty = penalty_tmp
         
         criterion = self.solution.calculate_energy()
         reward = self.last_criterion - criterion - penalty * self.penalty

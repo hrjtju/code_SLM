@@ -10,6 +10,9 @@ import numpy as np
 
 from slm_model.slm_classes import Machine, Part, Process
 from slm_model.bin_packing import allocate_bin_packing_2d
+from matplotlib.patches import Rectangle
+from matplotlib.colors import Normalize
+from matplotlib.cm import ScalarMappable
 
 class Batch:
     """
@@ -361,10 +364,106 @@ class BatchParallel1D(Batch):
         return len(self.parts_info) < 1
     
     def show_parts(self, fp):
-        return super().show_parts(fp)
+        for idx, part in enumerate(self.parts_info):
+            print(f"{idx = :03d}, Info: {part},", file=fp)
+
+        print(f"occupied_ratio: {self.get_occupied_ratio() * 100:.2f}%", file=fp)
+        print(f"rest_area: {self.get_rest_area()}", file=fp)
+        print(f"slice_number: {self.slice_number}", file=fp)
+        print(f"total_surface_area: {self.get_total_surface_area()}", file=fp)
+        print(f"total_part_volume: {self.get_total_part_volume()}", file=fp)
+        print(f"total_support_volume: {self.get_total_support_volume()}", file=fp)
+        print(f"Time: {calculate_batch_time(self)['total_time']}", file=fp)
+        print(f"Energy: {calculate_batch_energy(self)['EPC']}", file=fp)
     
     def show_view(self, dir: str) -> None:
-        return
+        plt.figure(dpi=200, figsize=(12, 10))
+        
+        # show the distribution of hights of the parts in this batch
+        plt.subplot(2, 2, 1)
+        part_height_ls = [part["H"] for part in self.parts_info]
+        plt.hist(part_height_ls, bins=len(self.parts_info)*2, alpha=0.7)
+        plt.title("Height Distribution")
+        plt.xlabel("Height (mm)")
+        plt.ylabel("Number of Parts")
+        plt.grid()
+        
+        # show the distribution of projection areas of the parts
+        plt.subplot(2, 2, 2)
+        part_proj_area_ls = [part["L"] * part["W"] for part in self.parts_info]
+        plt.hist(part_proj_area_ls, bins=len(self.parts_info)*2, alpha=0.7)
+        plt.title("Projection Area Distribution")
+        plt.xlabel(r"Projection Area ($\text{mm}^2$)")
+        plt.ylabel("Number of Parts")
+        plt.grid()
+        
+        # show the distribution of support volume of the parts
+        plt.subplot(2, 2, 3)
+        part_support_volume_ls = [part["S"] for part in self.parts_info]
+        plt.hist(part_support_volume_ls, bins=len(self.parts_info)*2, alpha=0.7)
+        plt.title("Support Volume Distribution")
+        plt.xlabel(r"Support Volume ($\text{mm}^3$)")
+        plt.ylabel("Number of Parts")
+        plt.grid()
+        
+        
+        # Draw a rectangle treemap
+        part_areas = [part["L"] * part["W"] for part in self.parts_info]
+        part_heights = [part["H"] for part in self.parts_info]
+        part_orientations = [part['O'] for part in self.parts_info]
+        part_categories = [part["type"] for part in self.parts_info]
+
+        # Normalize heights for color mapping
+        norm = Normalize(vmin=min(part_heights), vmax=max(part_heights))
+        cmap = plt.cm.Blues
+
+        # Create treemap
+        plt.subplot(2, 2, 4)
+        plt.title("Rectangle Treemap")
+        plt.axis("off")
+
+        current_x, current_y = 0, 0
+        max_row_height = 0
+        total_width = sum(part_areas) ** 0.5  # Approximate width for layout
+
+        for i, area in enumerate(part_areas):
+            width = area ** 0.5
+            height = area / width
+
+            # Check if we need to move to the next row
+            if current_x + width > total_width:
+                current_x = 0
+                current_y += max_row_height
+                max_row_height = 0
+
+            # Draw rectangle
+            color = cmap(norm(part_heights[i]))
+            rect = Rectangle((current_x, current_y), width, height, facecolor=color, edgecolor="black")
+            plt.gca().add_patch(rect)
+
+            # Add text for category and orientation
+            plt.text(
+            current_x + width / 2,
+            current_y + height / 2,
+            f"{part_categories[i]}\n{part_orientations[i]}",
+            ha="center",
+            va="center",
+            fontsize=6,
+            color="black",
+            )
+
+            # Update positions
+            current_x += width
+            max_row_height = max(max_row_height, height)
+
+        # Add colorbar for height
+        sm = ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])
+        plt.colorbar(sm, ax=plt.gca(), orientation="vertical", label="Height (mm)")
+        
+        plt.savefig(dir)
+        plt.close()
+        
     
 
 # TODO: Complete 1D parallel version of solution
@@ -423,14 +522,60 @@ class SolutionParallel1D(Solution):
         if not os.path.exists(out_dir):
             os.mkdir(out_dir)
         
-        with open(os.path.join(out_dir, "contains.txt"), 'w') as f:
+        with open(os.path.join(out_dir, "assignment.txt"), 'w') as f:
             print(f"\n\t {self.instance_name} \n", file=f)
             
             print(f"Solution Time: {self.calculate_time()}", file=f)
             print(f"Solution Energy: {self.calculate_energy()}", file=f)
             
+            for bid, b in enumerate(self.batches):
+                if b.empty():
+                    continue
+                
+                print(f"{'=' * 30}\n\t\tBatch No. {bid}\n{'=' * 30}", file=f)
+                b.show_parts(f)
+                b.show_view(f"{out_dir}/batch_{bid:02d}.jpg")
+        
+        plt.figure(dpi=200, figsize=(12, 8))
+        plt.suptitle(f"Batch Analysis of {os.path.basename(self.instance_name).split('.')[0]}", fontsize=16)
+        # occupied ratio 
+        plt.subplot(2, 2, 1)
         batch_status = list(self.get_current_view(show=True)[:, -1])
         plt.bar(range(len(batch_status)), batch_status)
+        plt.title("Occupied Ratio")
+        plt.xlabel("Batch No.")
+        plt.ylabel("Occupied Ratio (%)")
+        plt.grid()        
+        
+        # energy contribution
+        plt.subplot(2, 2, 2)
+        energy_ls = list(map(lambda x:calculate_batch_energy(x)["EPC"], self.batches))
+        energy_ls = [i/sum(energy_ls)*100 for i in energy_ls]
+        plt.bar(range(len(energy_ls)), energy_ls, color="orange")
+        plt.title("Energy Consumption")
+        plt.xlabel("Batch No.")
+        plt.ylabel(r"Energy Consumption Contribution (%)")
+        plt.grid()
+        
+        # num_layers / height
+        plt.subplot(2, 2, 3)
+        height_ls = list(map(lambda x:x.get_largest_height(), self.batches))
+        plt.bar(range(len(height_ls)), height_ls, color="green")
+        plt.title("Height of Parts")
+        plt.xlabel("Batch No.")
+        plt.ylabel("Height (mm)")
+        plt.grid()
+        
+        # total support volume
+        plt.subplot(2, 2, 4)
+        support_volume_ls = list(map(lambda x:x.get_total_support_volume(), self.batches))
+        plt.bar(range(len(support_volume_ls)), support_volume_ls, color="red")
+        plt.title("Support Volume")
+        plt.xlabel("Batch No.")
+        plt.ylabel(r"Support Volume ($\text{mm}^3$)")
+        plt.grid()
+        
+        plt.tight_layout()
         plt.savefig(f"{out_dir}/batch_all.jpg")
         plt.close()
 

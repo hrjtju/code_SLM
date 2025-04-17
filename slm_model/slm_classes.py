@@ -137,6 +137,8 @@ class Part(ItemFromJson):
         # self.orientation = None
         
         self.get_from_dict(d)
+        
+        self.build_params = sorted(self.build_params, key=lambda x: x["O"])
     
     # Can it be simplified?
     def get_part_info(self, orientation: int) -> dict:
@@ -161,6 +163,12 @@ class Part(ItemFromJson):
         """
         info_dict = self.get_part_info(orientation)
         return info_dict["L"] * info_dict["W"]
+    
+    def get_min_ori(self, key: str) -> float:
+        if key == "A":
+            return int(np.argmin([self.get_proj_area(ori) for ori in range(len(self.build_params))]))
+        else:
+            return int(np.argmin([ori[key] for ori in self.build_params]))
 
 # collects all data in one json file.
 class MetaData(ItemFromJson):

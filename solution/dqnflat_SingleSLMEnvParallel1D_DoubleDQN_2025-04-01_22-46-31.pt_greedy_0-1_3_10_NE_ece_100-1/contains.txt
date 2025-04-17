@@ -1,0 +1,204 @@
+
+	 ./instances_json/ece_100-1.json 
+
+Solution Time: 607918.6568538831
+Solution Energy: 5.355609907900634
+==============================
+		Batch No. 0
+==============================
+idx = 000, Info: {'type': 15.0, 'O': tensor(0, device='cuda:0'), 'volume': 66982.0, 'surface_area': 55677.0, 'L': 85.854, 'W': 95.324, 'H': 45.979, 'S': 11664.0},
+idx = 001, Info: {'type': 15.0, 'O': tensor(0, device='cuda:0'), 'volume': 66982.0, 'surface_area': 55677.0, 'L': 85.854, 'W': 95.324, 'H': 45.979, 'S': 11664.0},
+idx = 002, Info: {'type': 15.0, 'O': tensor(0, device='cuda:0'), 'volume': 66982.0, 'surface_area': 55677.0, 'L': 85.854, 'W': 95.324, 'H': 45.979, 'S': 11664.0},
+idx = 003, Info: {'type': 15.0, 'O': tensor(0, device='cuda:0'), 'volume': 66982.0, 'surface_area': 55677.0, 'L': 85.854, 'W': 95.324, 'H': 45.979, 'S': 11664.0},
+idx = 004, Info: {'type': 15.0, 'O': tensor(0, device='cuda:0'), 'volume': 66982.0, 'surface_area': 55677.0, 'L': 85.854, 'W': 95.324, 'H': 45.979, 'S': 11664.0},
+idx = 005, Info: {'type': 2.0, 'O': tensor(0, device='cuda:0'), 'volume': 37635.0, 'surface_area': 17532.0, 'L': 83.0, 'W': 74.0, 'H': 51.93, 'S': 23352.0},
+idx = 006, Info: {'type': 2.0, 'O': tensor(0, device='cuda:0'), 'volume': 37635.0, 'surface_area': 17532.0, 'L': 83.0, 'W': 74.0, 'H': 51.93, 'S': 23352.0},
+idx = 007, Info: {'type': 2.0, 'O': tensor(0, device='cuda:0'), 'volume': 37635.0, 'surface_area': 17532.0, 'L': 83.0, 'W': 74.0, 'H': 51.93, 'S': 23352.0},
+idx = 008, Info: {'type': 9.0, 'O': tensor(0, device='cuda:0'), 'volume': 9394.0, 'surface_area': 3705.0, 'L': 47.331, 'W': 41.215, 'H': 27.0, 'S': 1363.0},
+occupied_ratio: 99.66%
+rest_area: 207.51935499999672
+slice_number: 1731
+total_surface_area: 334686.0
+total_part_volume: 457209.0
+total_support_volume: 129739.0
+Time: 89356.51094896985
+Energy: 860946486.1041979
+==============================
+		Batch No. 4
+==============================
+idx = 000, Info: {'type': 6.0, 'O': tensor(0, device='cuda:0'), 'volume': 6310.0, 'surface_area': 9792.0, 'L': 26.55, 'W': 89.7, 'H': 11.52, 'S': 3908.0},
+idx = 001, Info: {'type': 6.0, 'O': tensor(0, device='cuda:0'), 'volume': 6310.0, 'surface_area': 9792.0, 'L': 26.55, 'W': 89.7, 'H': 11.52, 'S': 3908.0},
+idx = 002, Info: {'type': 6.0, 'O': tensor(0, device='cuda:0'), 'volume': 6310.0, 'surface_area': 9792.0, 'L': 26.55, 'W': 89.7, 'H': 11.52, 'S': 3908.0},
+idx = 003, Info: {'type': 6.0, 'O': tensor(0, device='cuda:0'), 'volume': 6310.0, 'surface_area': 9792.0, 'L': 26.55, 'W': 89.7, 'H': 11.52, 'S': 3908.0},
+idx = 004, Info: {'type': 6.0, 'O': tensor(0, device='cuda:0'), 'volume': 6310.0, 'surface_area': 9792.0, 'L': 26.55, 'W': 89.7, 'H': 11.52, 'S': 3908.0},
+idx = 005, Info: {'type': 19.0, 'O': tensor(0, device='cuda:0'), 'volume': 19267.0, 'surface_area': 10134.0, 'L': 44.0, 'W': 113.0, 'H': 26.0, 'S': 9173.0},
+idx = 006, Info: {'type': 19.0, 'O': tensor(0, device='cuda:0'), 'volume': 19267.0, 'surface_area': 10134.0, 'L': 44.0, 'W': 113.0, 'H': 26.0, 'S': 9173.0},
+idx = 007, Info: {'type': 19.0, 'O': tensor(0, device='cuda:0'), 'volume': 19267.0, 'surface_area': 10134.0, 'L': 44.0, 'W': 113.0, 'H': 26.0, 'S': 9173.0},
+idx = 008, Info: {'type': 19.0, 'O': tensor(0, device='cuda:0'), 'volume': 19267.0, 'surface_area': 10134.0, 'L': 44.0, 'W': 113.0, 'H': 26.0, 'S': 9173.0},
+idx = 009, Info: {'type': 19.0, 'O': tensor(0, device='cuda:0'), 'volume': 19267.0, 'surface_area': 10134.0, 'L': 44.0, 'W': 113.0, 'H': 26.0, 'S': 9173.0},
+idx = 010, Info: {'type': 9.0, 'O': tensor(0, device='cuda:0'), 'volume': 9394.0, 'surface_area': 3705.0, 'L': 47.331, 'W': 41.215, 'H': 27.0, 'S': 1363.0},
+idx = 011, Info: {'type': 9.0, 'O': tensor(0, device='cuda:0'), 'volume': 9394.0, 'surface_area': 3705.0, 'L': 47.331, 'W': 41.215, 'H': 27.0, 'S': 1363.0},
+idx = 012, Info: {'type': 9.0, 'O': tensor(0, device='cuda:0'), 'volume': 9394.0, 'surface_area': 3705.0, 'L': 47.331, 'W': 41.215, 'H': 27.0, 'S': 1363.0},
+idx = 013, Info: {'type': 9.0, 'O': tensor(0, device='cuda:0'), 'volume': 9394.0, 'surface_area': 3705.0, 'L': 47.331, 'W': 41.215, 'H': 27.0, 'S': 1363.0},
+idx = 014, Info: {'type': 4.0, 'O': tensor(0, device='cuda:0'), 'volume': 105909.0, 'surface_area': 45458.331, 'L': 79.0, 'W': 179.0, 'H': 36.6, 'S': 36239.0},
+idx = 015, Info: {'type': 20.0, 'O': tensor(0, device='cuda:0'), 'volume': 12012.0, 'surface_area': 5540.0, 'L': 48.414, 'W': 42.239, 'H': 30.984, 'S': 1684.0},
+occupied_ratio: 98.78%
+rest_area: 747.3773939999955
+slice_number: 1220
+total_surface_area: 165448.331
+total_part_volume: 283382.0
+total_support_volume: 108780.0
+Time: 60560.743951527926
+Energy: 555052994.4706714
+==============================
+		Batch No. 5
+==============================
+idx = 000, Info: {'type': 17.0, 'O': tensor(0, device='cuda:0'), 'volume': 30416.0, 'surface_area': 28909.0, 'L': 90.39, 'W': 90.397, 'H': 72.563, 'S': 11322.0},
+idx = 001, Info: {'type': 17.0, 'O': tensor(0, device='cuda:0'), 'volume': 30416.0, 'surface_area': 28909.0, 'L': 90.39, 'W': 90.397, 'H': 72.563, 'S': 11322.0},
+idx = 002, Info: {'type': 14.0, 'O': tensor(0, device='cuda:0'), 'volume': 46432.0, 'surface_area': 27592.0, 'L': 106.566, 'W': 106.466, 'H': 12.0, 'S': 12883.585},
+idx = 003, Info: {'type': 14.0, 'O': tensor(0, device='cuda:0'), 'volume': 46432.0, 'surface_area': 27592.0, 'L': 106.566, 'W': 106.466, 'H': 12.0, 'S': 12883.585},
+idx = 004, Info: {'type': 14.0, 'O': tensor(0, device='cuda:0'), 'volume': 46432.0, 'surface_area': 27592.0, 'L': 106.566, 'W': 106.466, 'H': 12.0, 'S': 12883.585},
+idx = 005, Info: {'type': 1.0, 'O': tensor(0, device='cuda:0'), 'volume': 6744.0, 'surface_area': 8607.833, 'L': 67.539, 'W': 34.617999999999995, 'H': 18.0, 'S': 1724.0},
+idx = 006, Info: {'type': 1.0, 'O': tensor(0, device='cuda:0'), 'volume': 6744.0, 'surface_area': 8607.833, 'L': 67.539, 'W': 34.617999999999995, 'H': 18.0, 'S': 1724.0},
+idx = 007, Info: {'type': 1.0, 'O': tensor(0, device='cuda:0'), 'volume': 6744.0, 'surface_area': 8607.833, 'L': 67.539, 'W': 34.617999999999995, 'H': 18.0, 'S': 1724.0},
+idx = 008, Info: {'type': 1.0, 'O': tensor(0, device='cuda:0'), 'volume': 6744.0, 'surface_area': 8607.833, 'L': 67.539, 'W': 34.617999999999995, 'H': 18.0, 'S': 1724.0},
+idx = 009, Info: {'type': 8.0, 'O': tensor(0, device='cuda:0'), 'volume': 2105.0, 'surface_area': 2160.0, 'L': 32.439, 'W': 36.257000000000005, 'H': 13.28, 'S': 396.0},
+occupied_ratio: 99.03%
+rest_area: 596.6618409999937
+slice_number: 2419
+total_surface_area: 177185.33200000005
+total_part_volume: 229209.0
+total_support_volume: 68586.755
+Time: 66354.83700174381
+Energy: 492465884.67127347
+==============================
+		Batch No. 10
+==============================
+idx = 000, Info: {'type': 11.0, 'O': tensor(0, device='cuda:0'), 'volume': 13136.0, 'surface_area': 5670.0, 'L': 79.493, 'W': 71.011, 'H': 28.632, 'S': 4516.0},
+idx = 001, Info: {'type': 11.0, 'O': tensor(0, device='cuda:0'), 'volume': 13136.0, 'surface_area': 5670.0, 'L': 79.493, 'W': 71.011, 'H': 28.632, 'S': 4516.0},
+idx = 002, Info: {'type': 11.0, 'O': tensor(0, device='cuda:0'), 'volume': 13136.0, 'surface_area': 5670.0, 'L': 79.493, 'W': 71.011, 'H': 28.632, 'S': 4516.0},
+idx = 003, Info: {'type': 11.0, 'O': tensor(0, device='cuda:0'), 'volume': 13136.0, 'surface_area': 5670.0, 'L': 79.493, 'W': 71.011, 'H': 28.632, 'S': 4516.0},
+idx = 004, Info: {'type': 7.0, 'O': tensor(0, device='cuda:0'), 'volume': 6701.0, 'surface_area': 7554.0, 'L': 50.0, 'W': 58.987, 'H': 24.0, 'S': 5289.0},
+idx = 005, Info: {'type': 7.0, 'O': tensor(0, device='cuda:0'), 'volume': 6701.0, 'surface_area': 7554.0, 'L': 50.0, 'W': 58.987, 'H': 24.0, 'S': 5289.0},
+idx = 006, Info: {'type': 7.0, 'O': tensor(0, device='cuda:0'), 'volume': 6701.0, 'surface_area': 7554.0, 'L': 50.0, 'W': 58.987, 'H': 24.0, 'S': 5289.0},
+idx = 007, Info: {'type': 7.0, 'O': tensor(0, device='cuda:0'), 'volume': 6701.0, 'surface_area': 7554.0, 'L': 50.0, 'W': 58.987, 'H': 24.0, 'S': 5289.0},
+idx = 008, Info: {'type': 17.0, 'O': tensor(0, device='cuda:0'), 'volume': 30416.0, 'surface_area': 28909.0, 'L': 90.39, 'W': 90.397, 'H': 72.563, 'S': 11322.0},
+idx = 009, Info: {'type': 17.0, 'O': tensor(0, device='cuda:0'), 'volume': 30416.0, 'surface_area': 28909.0, 'L': 90.39, 'W': 90.397, 'H': 72.563, 'S': 11322.0},
+idx = 010, Info: {'type': 17.0, 'O': tensor(0, device='cuda:0'), 'volume': 30416.0, 'surface_area': 28909.0, 'L': 90.39, 'W': 90.397, 'H': 72.563, 'S': 11322.0},
+idx = 011, Info: {'type': 1.0, 'O': tensor(0, device='cuda:0'), 'volume': 6744.0, 'surface_area': 8607.833, 'L': 67.539, 'W': 34.617999999999995, 'H': 18.0, 'S': 1724.0},
+occupied_ratio: 99.55%
+rest_area: 276.070716000002
+slice_number: 2419
+total_surface_area: 148230.833
+total_part_volume: 177340.0
+total_support_volume: 74910.0
+Time: 61587.974077657505
+Energy: 432203197.4658434
+==============================
+		Batch No. 13
+==============================
+idx = 000, Info: {'type': 4.0, 'O': tensor(0, device='cuda:0'), 'volume': 105909.0, 'surface_area': 45458.331, 'L': 79.0, 'W': 179.0, 'H': 36.6, 'S': 36239.0},
+idx = 001, Info: {'type': 4.0, 'O': tensor(0, device='cuda:0'), 'volume': 105909.0, 'surface_area': 45458.331, 'L': 79.0, 'W': 179.0, 'H': 36.6, 'S': 36239.0},
+idx = 002, Info: {'type': 4.0, 'O': tensor(0, device='cuda:0'), 'volume': 105909.0, 'surface_area': 45458.331, 'L': 79.0, 'W': 179.0, 'H': 36.6, 'S': 36239.0},
+idx = 003, Info: {'type': 4.0, 'O': tensor(0, device='cuda:0'), 'volume': 105909.0, 'surface_area': 45458.331, 'L': 79.0, 'W': 179.0, 'H': 36.6, 'S': 36239.0},
+idx = 004, Info: {'type': 20.0, 'O': tensor(0, device='cuda:0'), 'volume': 12012.0, 'surface_area': 5540.0, 'L': 48.414, 'W': 42.239, 'H': 30.984, 'S': 1684.0},
+idx = 005, Info: {'type': 20.0, 'O': tensor(0, device='cuda:0'), 'volume': 12012.0, 'surface_area': 5540.0, 'L': 48.414, 'W': 42.239, 'H': 30.984, 'S': 1684.0},
+occupied_ratio: 98.62%
+rest_area: 850.0821080000023
+slice_number: 1220
+total_surface_area: 192913.324
+total_part_volume: 447660.0
+total_support_volume: 148324.0
+Time: 78240.74806682917
+Energy: 783198869.0515066
+==============================
+		Batch No. 14
+==============================
+idx = 000, Info: {'type': 20.0, 'O': tensor(0, device='cuda:0'), 'volume': 12012.0, 'surface_area': 5540.0, 'L': 48.414, 'W': 42.239, 'H': 30.984, 'S': 1684.0},
+idx = 001, Info: {'type': 20.0, 'O': tensor(0, device='cuda:0'), 'volume': 12012.0, 'surface_area': 5540.0, 'L': 48.414, 'W': 42.239, 'H': 30.984, 'S': 1684.0},
+idx = 002, Info: {'type': 8.0, 'O': tensor(0, device='cuda:0'), 'volume': 2105.0, 'surface_area': 2160.0, 'L': 32.439, 'W': 36.257000000000005, 'H': 13.28, 'S': 396.0},
+idx = 003, Info: {'type': 8.0, 'O': tensor(0, device='cuda:0'), 'volume': 2105.0, 'surface_area': 2160.0, 'L': 32.439, 'W': 36.257000000000005, 'H': 13.28, 'S': 396.0},
+idx = 004, Info: {'type': 8.0, 'O': tensor(0, device='cuda:0'), 'volume': 2105.0, 'surface_area': 2160.0, 'L': 32.439, 'W': 36.257000000000005, 'H': 13.28, 'S': 396.0},
+idx = 005, Info: {'type': 18.0, 'O': tensor(0, device='cuda:0'), 'volume': 44567.0, 'surface_area': 18280.0, 'L': 70.0, 'W': 60.0, 'H': 30.05, 'S': 11506.0},
+idx = 006, Info: {'type': 18.0, 'O': tensor(0, device='cuda:0'), 'volume': 44567.0, 'surface_area': 18280.0, 'L': 70.0, 'W': 60.0, 'H': 30.05, 'S': 11506.0},
+idx = 007, Info: {'type': 18.0, 'O': tensor(0, device='cuda:0'), 'volume': 44567.0, 'surface_area': 18280.0, 'L': 70.0, 'W': 60.0, 'H': 30.05, 'S': 11506.0},
+idx = 008, Info: {'type': 18.0, 'O': tensor(0, device='cuda:0'), 'volume': 44567.0, 'surface_area': 18280.0, 'L': 70.0, 'W': 60.0, 'H': 30.05, 'S': 11506.0},
+idx = 009, Info: {'type': 18.0, 'O': tensor(0, device='cuda:0'), 'volume': 44567.0, 'surface_area': 18280.0, 'L': 70.0, 'W': 60.0, 'H': 30.05, 'S': 11506.0},
+idx = 010, Info: {'type': 3.0, 'O': tensor(0, device='cuda:0'), 'volume': 1029.0, 'surface_area': 1017.0, 'L': 38.298, 'W': 23.762999999999998, 'H': 13.77, 'S': 98.0},
+idx = 011, Info: {'type': 3.0, 'O': tensor(0, device='cuda:0'), 'volume': 1029.0, 'surface_area': 1017.0, 'L': 38.298, 'W': 23.762999999999998, 'H': 13.77, 'S': 98.0},
+idx = 012, Info: {'type': 3.0, 'O': tensor(0, device='cuda:0'), 'volume': 1029.0, 'surface_area': 1017.0, 'L': 38.298, 'W': 23.762999999999998, 'H': 13.77, 'S': 98.0},
+idx = 013, Info: {'type': 3.0, 'O': tensor(0, device='cuda:0'), 'volume': 1029.0, 'surface_area': 1017.0, 'L': 38.298, 'W': 23.762999999999998, 'H': 13.77, 'S': 98.0},
+occupied_ratio: 52.45%
+rest_area: 29245.358142999998
+slice_number: 1033
+total_surface_area: 113028.0
+total_part_volume: 257290.0
+total_support_volume: 62478.0
+Time: 49795.54888186395
+Energy: 439604874.4045876
+==============================
+		Batch No. 15
+==============================
+idx = 000, Info: {'type': 12.0, 'O': tensor(0, device='cuda:0'), 'volume': 46500.0, 'surface_area': 27732.0, 'L': 90.0, 'W': 90.0, 'H': 33.0, 'S': 36208.0},
+idx = 001, Info: {'type': 12.0, 'O': tensor(0, device='cuda:0'), 'volume': 46500.0, 'surface_area': 27732.0, 'L': 90.0, 'W': 90.0, 'H': 33.0, 'S': 36208.0},
+idx = 002, Info: {'type': 12.0, 'O': tensor(0, device='cuda:0'), 'volume': 46500.0, 'surface_area': 27732.0, 'L': 90.0, 'W': 90.0, 'H': 33.0, 'S': 36208.0},
+idx = 003, Info: {'type': 12.0, 'O': tensor(0, device='cuda:0'), 'volume': 46500.0, 'surface_area': 27732.0, 'L': 90.0, 'W': 90.0, 'H': 33.0, 'S': 36208.0},
+idx = 004, Info: {'type': 12.0, 'O': tensor(0, device='cuda:0'), 'volume': 46500.0, 'surface_area': 27732.0, 'L': 90.0, 'W': 90.0, 'H': 33.0, 'S': 36208.0},
+idx = 005, Info: {'type': 13.0, 'O': tensor(0, device='cuda:0'), 'volume': 24764.0, 'surface_area': 7760.0, 'L': 73.0, 'W': 40.0, 'H': 30.0, 'S': 411.0},
+idx = 006, Info: {'type': 13.0, 'O': tensor(0, device='cuda:0'), 'volume': 24764.0, 'surface_area': 7760.0, 'L': 73.0, 'W': 40.0, 'H': 30.0, 'S': 411.0},
+idx = 007, Info: {'type': 13.0, 'O': tensor(0, device='cuda:0'), 'volume': 24764.0, 'surface_area': 7760.0, 'L': 73.0, 'W': 40.0, 'H': 30.0, 'S': 411.0},
+idx = 008, Info: {'type': 13.0, 'O': tensor(0, device='cuda:0'), 'volume': 24764.0, 'surface_area': 7760.0, 'L': 73.0, 'W': 40.0, 'H': 30.0, 'S': 411.0},
+idx = 009, Info: {'type': 11.0, 'O': tensor(0, device='cuda:0'), 'volume': 13136.0, 'surface_area': 5670.0, 'L': 79.493, 'W': 71.011, 'H': 28.632, 'S': 4516.0},
+idx = 010, Info: {'type': 7.0, 'O': tensor(0, device='cuda:0'), 'volume': 6701.0, 'surface_area': 7554.0, 'L': 50.0, 'W': 58.987, 'H': 24.0, 'S': 5289.0},
+occupied_ratio: 98.81%
+rest_area: 729.7725770000034
+slice_number: 1100
+total_surface_area: 182924.0
+total_part_volume: 351393.0
+total_support_volume: 192489.0
+Time: 73074.0130227459
+Energy: 730371345.1057448
+==============================
+		Batch No. 16
+==============================
+idx = 000, Info: {'type': 14.0, 'O': tensor(0, device='cuda:0'), 'volume': 46432.0, 'surface_area': 27592.0, 'L': 106.566, 'W': 106.466, 'H': 12.0, 'S': 12883.585},
+idx = 001, Info: {'type': 14.0, 'O': tensor(0, device='cuda:0'), 'volume': 46432.0, 'surface_area': 27592.0, 'L': 106.566, 'W': 106.466, 'H': 12.0, 'S': 12883.585},
+idx = 002, Info: {'type': 5.0, 'O': tensor(0, device='cuda:0'), 'volume': 28588.135, 'surface_area': 20398.789, 'L': 87.0, 'W': 87.0, 'H': 60.93, 'S': 1183.0},
+idx = 003, Info: {'type': 5.0, 'O': tensor(0, device='cuda:0'), 'volume': 28588.135, 'surface_area': 20398.789, 'L': 87.0, 'W': 87.0, 'H': 60.93, 'S': 1183.0},
+idx = 004, Info: {'type': 5.0, 'O': tensor(0, device='cuda:0'), 'volume': 28588.135, 'surface_area': 20398.789, 'L': 87.0, 'W': 87.0, 'H': 60.93, 'S': 1183.0},
+idx = 005, Info: {'type': 5.0, 'O': tensor(0, device='cuda:0'), 'volume': 28588.135, 'surface_area': 20398.789, 'L': 87.0, 'W': 87.0, 'H': 60.93, 'S': 1183.0},
+idx = 006, Info: {'type': 5.0, 'O': tensor(0, device='cuda:0'), 'volume': 28588.135, 'surface_area': 20398.789, 'L': 87.0, 'W': 87.0, 'H': 60.93, 'S': 1183.0},
+idx = 007, Info: {'type': 3.0, 'O': tensor(0, device='cuda:0'), 'volume': 1029.0, 'surface_area': 1017.0, 'L': 38.298, 'W': 23.762999999999998, 'H': 13.77, 'S': 98.0},
+occupied_ratio: 99.91%
+rest_area: 57.61311399999977
+slice_number: 2031
+total_surface_area: 158194.945
+total_part_volume: 236833.67500000002
+total_support_volume: 31780.17
+Time: 58404.116753147915
+Energy: 434650614.9292113
+==============================
+		Batch No. 17
+==============================
+idx = 000, Info: {'type': 2.0, 'O': tensor(0, device='cuda:0'), 'volume': 37635.0, 'surface_area': 17532.0, 'L': 83.0, 'W': 74.0, 'H': 51.93, 'S': 23352.0},
+idx = 001, Info: {'type': 2.0, 'O': tensor(0, device='cuda:0'), 'volume': 37635.0, 'surface_area': 17532.0, 'L': 83.0, 'W': 74.0, 'H': 51.93, 'S': 23352.0},
+idx = 002, Info: {'type': 10.0, 'O': tensor(0, device='cuda:0'), 'volume': 3850.0, 'surface_area': 6134.0, 'L': 51.871, 'W': 51.871, 'H': 7.0, 'S': 577.0},
+idx = 003, Info: {'type': 10.0, 'O': tensor(0, device='cuda:0'), 'volume': 3850.0, 'surface_area': 6134.0, 'L': 51.871, 'W': 51.871, 'H': 7.0, 'S': 577.0},
+idx = 004, Info: {'type': 10.0, 'O': tensor(0, device='cuda:0'), 'volume': 3850.0, 'surface_area': 6134.0, 'L': 51.871, 'W': 51.871, 'H': 7.0, 'S': 577.0},
+idx = 005, Info: {'type': 10.0, 'O': tensor(0, device='cuda:0'), 'volume': 3850.0, 'surface_area': 6134.0, 'L': 51.871, 'W': 51.871, 'H': 7.0, 'S': 577.0},
+idx = 006, Info: {'type': 10.0, 'O': tensor(0, device='cuda:0'), 'volume': 3850.0, 'surface_area': 6134.0, 'L': 51.871, 'W': 51.871, 'H': 7.0, 'S': 577.0},
+idx = 007, Info: {'type': 16.0, 'O': tensor(0, device='cuda:0'), 'volume': 51532.0, 'surface_area': 15176.0, 'L': 79.106, 'W': 79.139, 'H': 20.05, 'S': 6416.0},
+idx = 008, Info: {'type': 16.0, 'O': tensor(0, device='cuda:0'), 'volume': 51532.0, 'surface_area': 15176.0, 'L': 79.106, 'W': 79.139, 'H': 20.05, 'S': 6416.0},
+idx = 009, Info: {'type': 16.0, 'O': tensor(0, device='cuda:0'), 'volume': 51532.0, 'surface_area': 15176.0, 'L': 79.106, 'W': 79.139, 'H': 20.05, 'S': 6416.0},
+idx = 010, Info: {'type': 16.0, 'O': tensor(0, device='cuda:0'), 'volume': 51532.0, 'surface_area': 15176.0, 'L': 79.106, 'W': 79.139, 'H': 20.05, 'S': 6416.0},
+idx = 011, Info: {'type': 16.0, 'O': tensor(0, device='cuda:0'), 'volume': 51532.0, 'surface_area': 15176.0, 'L': 79.106, 'W': 79.139, 'H': 20.05, 'S': 6416.0},
+idx = 012, Info: {'type': 13.0, 'O': tensor(0, device='cuda:0'), 'volume': 24764.0, 'surface_area': 7760.0, 'L': 73.0, 'W': 40.0, 'H': 30.0, 'S': 411.0},
+idx = 013, Info: {'type': 8.0, 'O': tensor(0, device='cuda:0'), 'volume': 2105.0, 'surface_area': 2160.0, 'L': 32.439, 'W': 36.257000000000005, 'H': 13.28, 'S': 396.0},
+occupied_ratio: 99.40%
+rest_area: 369.00730199999816
+slice_number: 1731
+total_surface_area: 151534.0
+total_part_volume: 379049.0
+total_support_volume: 82476.0
+Time: 70544.16414939702
+Energy: 627115641.6975973

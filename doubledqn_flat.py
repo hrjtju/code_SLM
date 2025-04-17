@@ -61,6 +61,7 @@ class PrioritizedItem:
 
 class Arguments:
     mask: bool
+    sample: bool
     lr: float
     penalty: float
     num_episodes: int
@@ -182,8 +183,7 @@ class QNet(nn.Module):
     def __init__(self, 
                  max_part: int = 20, 
                  max_ori: int = 7, 
-                 device: torch.device = "cpu",
-                 mask: bool = False
+                 device: torch.device = "cpu"
                  ) -> None:
         super(QNet, self).__init__()
         
@@ -226,13 +226,16 @@ class DoubleDQN:
         self.update_count = 0
         self.device = device
         
-        self.q_net = QNet(self.max_part, self.max_ori, self.device, args.mask).to(self.device)
+        self.q_net = QNet(self.max_part, self.max_ori, self.device).to(self.device)
         self.q_net.apply(init_weights_normal)
         
-        self.target_q_net = QNet(self.max_part, self.max_ori, self.device, args.mask).to(self.device)
+        self.target_q_net = QNet(self.max_part, self.max_ori, self.device).to(self.device)
         self.q_net.apply(init_weights_normal)
         
         self.optimizer = torch.optim.Adam(self.q_net.parameters(), lr=args.lr)
+        
+        self.mask = args.mask
+        self.sample = args.sample
         
     def take_action(self, state: torch.Tensor, curr_mask: torch.Tensor, test: bool = False):
         
@@ -253,6 +256,24 @@ class DoubleDQN:
             part_d[~torch.sum(curr_mask, dim=(-1, -2)).bool()] = -torch.inf
             ori_d[~torch.sum(curr_mask[part:=part_d.argmax(-1)], dim=-1).bool()] = -torch.inf
             batch_d[~curr_mask[part, ori_d.argmax(-1)].bool()] = -torch.inf
+        
+        # TODO: Check the two branches of these actions
+        if self.sample and test:
+            part_d1 = torch.zeros_like(part_d).to(self.device)
+            ori_d1 = torch.zeros_like(ori_d).to(self.device)
+            batch_d1 = torch.zeros_like(batch_d).to(self.device)
+            
+            part_id = torch.distributions.Categorical(F.softmax(part_d)).sample().item()
+            ori_id = torch.distributions.Categorical(F.softmax(ori_d)).sample().item()
+            batch_id = torch.distributions.Categorical(F.softmax(batch_d)).sample().item()
+            
+            part_d1[0, part_id] = 1.0
+            ori_d1[0, ori_id] = 1.0
+            batch_d1[0, batch_id] = 1.0
+            
+            part_d = part_d1
+            ori_d = ori_d1
+            batch_d = batch_d1
         
         return torch.concat([part_d, ori_d, batch_d])
 
@@ -328,7 +349,8 @@ def parse_args() -> Arguments:
     
     parser = argparse.ArgumentParser(description="DQN training")
     
-    parser.add_argument("--mask", type=bool, default=False, help="Use mask for action selection")
+    parser.add_argument("--mask", action='store_true', help="Use mask for action selection")
+    parser.add_argument("--sample", action='store_true', help="you shall never use this here")
     parser.add_argument("--lr", type=float, default=0.01, help="Learning rate")
     parser.add_argument("--penalty", type=float, default=0.1, help="Penalty for invalid actions")
     parser.add_argument("--num_episodes", type=int, default=100000, help="Number of episodes")
