@@ -380,7 +380,7 @@ class BatchParallel1D(Batch):
     def show_view(self, dir: str) -> None:
         self.parts_info.sort(key=lambda x: x["L"] * x["W"], reverse=True)
         
-        plt.figure(dpi=200, figsize=(12, 10))
+        plt.figure(dpi=200, figsize=(12, 8))
         plt.suptitle("Batch Summary")
         
         # show the distribution of hights of the parts in this batch

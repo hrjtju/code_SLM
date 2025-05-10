@@ -68,7 +68,7 @@ for instance_f in os.listdir(args.load_path):
     # height OR suppret volume OR projection area
     best_choice = {int(p.part_type): p.get_min_ori(key_) for p in parts_ls}
     all_parts_ls_sorted = sorted(reduce(lambda x, y: x + y, [[(p, int(p.part_type), best_choice[int(p.part_type)]) for _ in range(int(p.num_part))] for p in parts_ls]), 
-                            key=lambda x: x[0].build_params[x[2]]["H"])
+                            key=lambda x: x[0].build_params[x[2]]["H"], reverse=True)
     
     current_batch = 0
     part_to_assign = 0
@@ -94,6 +94,7 @@ for instance_f in os.listdir(args.load_path):
 
             part_to_assign += 1
             
+        test_env.solution.show(out_dir=f"./solution/baseline_{args.mode}/{instance_f.split('.')[0]}")
         test_meter.update(os.path.basename(instance_), test_env.solution.calculate_energy())
 
 with open(f"./test_results/baseline_{args.mode}.txt", "w+") as f:
