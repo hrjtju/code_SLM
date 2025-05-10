@@ -205,7 +205,6 @@ class SingleSLMEnv(Env):
         
         # Flag var, Whether the part is allocated successfully
         allocated = False
-        
         # Select part_id and orientation_id
         # TODO: 
         part_id = torch.argmax(part_d.reshape(-1).to(self.device) * \
