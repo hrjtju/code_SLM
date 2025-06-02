@@ -650,7 +650,7 @@ def calculate_batch_energy(
         [machine.power_subsystems["recoater_motor"]], 
         [machine.power_subsystems["electric_valves"]], 
         [machine.power_subsystems["gas_circulation_pump_motor"]], 
-    ])
+    ], dtype=np.float64)
     
     # ==========================================================================
     # Building time array
@@ -663,7 +663,7 @@ def calculate_batch_energy(
         [batch_time_dict["support_building_time"]], 
         [batch_time_dict["recoater_time_all"]], 
         [batch_time_dict["cooling_time"]]
-        ])
+        ], dtype=np.float64)
     
     # ==========================================================================
     # Calculating total energy and anergy matrix

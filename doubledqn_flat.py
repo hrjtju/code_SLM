@@ -367,7 +367,7 @@ def parse_args() -> Arguments:
     parser.add_argument("--clip_grad_norm", type=float, default=100.0, help="Gradient clipping norm")
     parser.add_argument("--train_dir", type=str, default="./instances_json/", help="Directory for training instances")
     parser.add_argument("--eval_dir", type=str, default="./instances_json/", help="Directory for testing instances")
-    parser.add_argument("--trial_name", type=str, required=True, help="Trial name for saving model")
+    parser.add_argument("--trial_name", type=str, default="None", help="Trial name for saving model")
     
     return parser.parse_args()
 

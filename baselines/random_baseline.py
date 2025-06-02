@@ -10,7 +10,7 @@ sys.path.extend([os.path.abspath(os.path.join(os.path.dirname(__file__), '..')),
 import torch
 from tqdm import tqdm
 
-from doubledqn_flat import DoubleDQN, PrioritizedReplayBuffer, to_device
+from doubledqn_flat import DoubleDQN, PrioritizedReplayBuffer, Arguments, parse_args
 from slm_model.slm_env import SingleSLMEnvParallel1D
 from training_utils.utils import IntstanceAvgMeter
 
@@ -35,8 +35,11 @@ MAX_BATCH_NUM = 20
 
 replay_buffer = PrioritizedReplayBuffer(buffer_size)
 
-agent = DoubleDQN(lr, gamma, epsilon, target_update, device, 
-                    max_part=MAX_PART_TYPE, max_ori=MAX_ORIENTATION_NUM, max_batch=MAX_BATCH_NUM)
+args = parse_args()
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+agent = DoubleDQN(device, args)
 
 test_meter = IntstanceAvgMeter(window_size=10)
 
