@@ -581,10 +581,12 @@ def calculate_batch_time(
         
     fill_contour_time = b.get_total_surface_area() / (process.num_laser \
         * process.laser_speed_contour * process.layer_thickness)
-        
+    
+    # TOT_VOL / BLD_SPD_VOL = TOT_VOL / (N_LASER * VOL_HAT_DST * VOL_HAT_THK * VOL_SPD)
     volume_hatching_time = b.get_total_part_volume() / (process.num_laser \
         * process.laser_speed_volume * process.layer_thickness * process.hatch_distance_volume)
-        
+    
+    # TOT_VOL_SUP / BLD_SPD_SUP = TOT_VOL_SUP / (N_LASER * SUP_HAT_DST * SUP_HAT_THK * SUP_SPD)
     support_building_time = b.get_total_support_volume() / (process.num_laser \
         * process.laser_speed_support * process.layer_thickness * process.hatch_distance_support)
     
