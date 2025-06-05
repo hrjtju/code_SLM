@@ -323,7 +323,7 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         # randomly pick a json file in the training dir
         # and pack the training data into a class
         if self.phase == "Train":
-            self.load_path = random.choice(os.listdir(self.in_path))
+            self.load_path = random.choice([*filter(lambda x:".json" in x, os.listdir(self.in_path))])
             self.slm_metadata = load_json_to_class(os.path.join(self.in_path, self.load_path))
             
         # if the phase is Test, choose the file indicated by the path.

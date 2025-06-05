@@ -516,7 +516,7 @@ if __name__ == "__main__":
                 if i_episode % 500 == 0:
                     
                     # test model with greedy action-selection
-                    for instance_f in os.listdir(args.eval_dir):
+                    for instance_f in filter(lambda x:".json" in x, os.listdir(args.eval_dir)):
                         test_env = SingleSLMEnvParallel1D(in_path=f"{args.eval_dir}/{instance_f}", phase="Test",
                                     max_part_type=MAX_PART_TYPE, max_batch_num=MAX_BATCH_NUM, max_orientation_num=MAX_ORIENTATION_NUM)
                         
