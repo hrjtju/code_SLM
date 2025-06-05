@@ -18,8 +18,8 @@
             "water_cooling_unit": 1739.4,
             "laser_scanning_border": 300.00,
             "laser_filling_contour": 300.00,
-            "laser_volume_hatching": 2022.92,
-            "laser_supports_building": 2022.92,
+            "laser_volume_hatching": 350,
+            "laser_supports_building": 350,
             "recoater_motor": 52.1,
             "electric_valves": 32.1,
             "gas_circulation_pump_motor": 69.1
@@ -46,11 +46,11 @@
                 ],
                 "platform_heater": [
                     1.0,
-                    0.4826,
-                    0.4826,
-                    0.4826,
-                    0.4826,
-                    0.4826,
+                    0.482580415,
+                    0.482580415,
+                    0.482580415,
+                    0.482580415,
+                    0.482580415,
                     0.0
                 ],
                 "water_circulation_unit": [
