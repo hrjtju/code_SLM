@@ -19,6 +19,7 @@
 *.rar
 *.tar
 *.zip
+*.pyc
 
 # Logs and databases #
 ######################
@@ -55,3 +56,5 @@ slm_model/__pycache__/*
 rl_algorithms/__pycache__/*
 wandb
 solution
+
+__pycache__/
