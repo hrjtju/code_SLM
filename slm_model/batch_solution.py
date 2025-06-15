@@ -125,7 +125,7 @@ class Batch:
         """
         Returns total <u>surface area</u> of all parts in this batch
         """
-        return np.float128(sum(map(lambda x:x["surface_area"], self.parts_info)))
+        return np.float64(sum(map(lambda x:x["surface_area"], self.parts_info)))
     
     def get_total_part_volume(self) -> float:
         """
@@ -576,18 +576,18 @@ def calculate_batch_time(
     
     heater_time = delta_t_heater
     
-    scanning_border_time = b.get_total_surface_area() / np.float128(process.num_laser \
+    scanning_border_time = b.get_total_surface_area() / np.float64(process.num_laser \
         * process.laser_speed_border * process.layer_thickness)
         
-    fill_contour_time = b.get_total_surface_area() / np.float128(process.num_laser \
+    fill_contour_time = b.get_total_surface_area() / np.float64(process.num_laser \
         * process.laser_speed_contour * process.layer_thickness)
     
     # TOT_VOL / BLD_SPD_VOL = TOT_VOL / (N_LASER * VOL_HAT_DST * VOL_HAT_THK * VOL_SPD)
-    volume_hatching_time = b.get_total_part_volume() / np.float128(process.num_laser \
+    volume_hatching_time = b.get_total_part_volume() / np.float64(process.num_laser \
         * process.laser_speed_volume * process.layer_thickness * process.hatch_distance_volume)
     
     # TOT_VOL_SUP / BLD_SPD_SUP = TOT_VOL_SUP / (N_LASER * SUP_HAT_DST * SUP_HAT_THK * SUP_SPD)
-    support_building_time = b.get_total_support_volume() / np.float128(process.num_laser \
+    support_building_time = b.get_total_support_volume() / np.float64(process.num_laser \
         * process.laser_speed_support * process.layer_thickness * process.hatch_distance_support)
     
     #! MISSING
@@ -628,13 +628,13 @@ def calculate_batch_energy(
     # ==========================================================================
     # Calculating real power of some subsystems
     real_power_scanning_border = process.num_laser \
-        * np.float128(Machine.A + machine.power_subsystems["laser_scanning_border"] * Machine.B)
+        * np.float64(Machine.A + machine.power_subsystems["laser_scanning_border"] * Machine.B)
     real_power_scanning_fill_contour = process.num_laser \
-        * np.float128(Machine.A + machine.power_subsystems['laser_filling_contour'] * Machine.B)
+        * np.float64(Machine.A + machine.power_subsystems['laser_filling_contour'] * Machine.B)
     real_power_scanning_volume_hatching = process.num_laser \
-        * np.float128(Machine.A + machine.power_subsystems['laser_volume_hatching'] * Machine.B)
+        * np.float64(Machine.A + machine.power_subsystems['laser_volume_hatching'] * Machine.B)
     real_power_scanning_support_volume = process.num_laser \
-        * np.float128(Machine.A + machine.power_subsystems['laser_supports_building'] * Machine.B)
+        * np.float64(Machine.A + machine.power_subsystems['laser_supports_building'] * Machine.B)
     
     # ==========================================================================
     # Building power array
@@ -650,7 +650,7 @@ def calculate_batch_energy(
         [machine.power_subsystems["recoater_motor"]], 
         [machine.power_subsystems["electric_valves"]], 
         [machine.power_subsystems["gas_circulation_pump_motor"]], 
-    ], dtype=np.float128)
+    ], dtype=np.float64)
     
     # ==========================================================================
     # Building time array
@@ -663,12 +663,12 @@ def calculate_batch_energy(
         [batch_time_dict["support_building_time"]], 
         [batch_time_dict["recoater_time_all"]], 
         [batch_time_dict["cooling_time"]]
-        ], dtype=np.float128)
+        ], dtype=np.float64)
     
     # ==========================================================================
     # Calculating total energy and anergy matrix
     
-    K = machine.power_coefficient.values.astype(np.float128)
+    K = machine.power_coefficient.values.astype(np.float64)
     # Equivalent to EPC = np.dot(np.dot(P, K), T.T)
     EPC = (P.T @ K @ T).reshape(-1).item() # An number
     
