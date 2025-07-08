@@ -14,8 +14,6 @@ import os
 import random
 import collections
 import heapq
-from sympy import true
-import torch.utils
 from tqdm import tqdm
 from typing import List, Literal, Tuple
 import warnings
@@ -191,6 +189,7 @@ class QNet(nn.Module):
         self.max_ori = max_ori
         self.device = device
         
+        # split into two heads
         self.policy = nn.Sequential(
             nn.Linear(in_features=683, out_features=512),
             nn.LeakyReLU(inplace=True),

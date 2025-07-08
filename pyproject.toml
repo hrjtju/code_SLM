@@ -1,0 +1,20 @@
+[project]
+name = "code-slm"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "argparse>=1.4.0",
+    "gymnasium>=1.2.0",
+    "matplotlib>=3.10.3",
+    "numpy<=1.26",
+    "pandas>=2.3.1",
+    "rectpack>=0.2.2",
+    "scipy>=1.16.0",
+    "squarify>=0.4.4",
+    "torch>=2.7.1",
+    "torchvision>=0.22.1",
+    "tqdm>=4.67.1",
+    "wandb>=0.21.0",
+]

@@ -4,7 +4,6 @@ import random
 from typing import Any, Dict, Tuple, List, Literal
 import torch
 from torch import Tensor as Tensor
-import joyrl
 from gymnasium import Env, spaces
 
 from slm_model.slm_classes import MetaData, load_json_to_class
@@ -563,9 +562,4 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         
         return self.curr_state, reward, terminated, truncated, info
 
-if __name__ == "__main__":
-    print(joyrl.__version__) # print version
-    yaml_path = "./yaml_configurations/SingleSLM1dParallelEnv-v0-DQN.yaml" 
-    slm_single_env = SingleSLMEnvParallel1D(in_path="./instances_json/", phase="Train")
-    joyrl.run(yaml_path=yaml_path, env=slm_single_env)
 
