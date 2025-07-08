@@ -489,6 +489,8 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         """
         Returns: `[part_dist, orientation_dist, batch_dist]`
         """
+        action = action.reshape(-1)
+        
         return action[:self.max_part_type],\
             action[self.max_part_type: self.max_part_type+self.max_orientation_num],\
             action[self.max_part_type+self.max_orientation_num:]
@@ -505,14 +507,13 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         info, reward = None, 0        
         
         if isinstance(actions, torch.Tensor):
-            part, ori, batch = self.slice_action(actions)
+            part, ori, batch = self.slice_action(actions.detach().cpu())
         else:
-            part, ori, batch = actions
+            part, ori, batch = actions.detach().cpu()
         
         penalty = 0
         success = False
         self.fail_allocate_num = 0
-        
         # print(f"{self.ppo=}")
         
         if not self.ppo:

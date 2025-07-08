@@ -495,20 +495,76 @@ class SolutionParallel1D(Solution):
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
         
+        non_empty_batches = [b for b in self.batches if not b.empty()]
+        n_batch_num = len(non_empty_batches)
+        
         with open(os.path.join(out_dir, "assignment.txt"), 'w') as f:
             print(f"\n\t {self.instance_name} \n", file=f)
             
             print(f"Solution Time: {self.calculate_time()}", file=f)
             print(f"Solution Energy: {self.calculate_energy()}", file=f)
             
-            for bid, b in enumerate(self.batches):
-                if b.empty():
-                    continue
-                
+            for bid, b in enumerate(non_empty_batches):
                 print(f"{'=' * 30}\n\t\tBatch No. {bid}\n{'=' * 30}", file=f)
                 b.show_parts(f)
                 b.show_view(f"{out_dir}/batch_{bid:02d}.jpg")
         
+        ## analysis 1
+        # calculate the heighest part
+        max_height = max(map(lambda x:x.get_largest_height(), non_empty_batches))
+        
+        row_num = ceil(n_batch_num / 4)
+        plt.figure(dpi=200, figsize=(12, 3 * row_num))
+        
+        for i, b in enumerate(non_empty_batches):
+            plt.subplot(row_num, 4, i+1)
+            
+            batch_height_ls = sorted([part["H"] for part in b.parts_info])
+            plt.stem(batch_height_ls)
+            plt.title(f"Batch {i}")
+            
+            # turn off x labels
+            plt.xticks([])
+            plt.grid(axis='y')
+                
+            plt.ylim(0, max_height + 5)
+            
+            if i % 4 == 0:
+                # turn off all edges except the left edge
+                # plt.gca().spines['right'].set_visible(False)
+                # plt.gca().spines['top'].set_visible(False)
+                # plt.gca().spines['bottom'].set_visible(False)
+                
+                plt.ylabel("Height (mm)")
+            elif i % 4 == 3:
+                # plt.gca().spines['left'].set_visible(False)
+                # plt.gca().spines['top'].set_visible(False)
+                # plt.gca().spines['bottom'].set_visible(False)
+                
+                plt.gca().yaxis.set_ticks_position('right') 
+            else:
+                # turn off all edges except the right edge
+                # plt.gca().spines['right'].set_visible(False)
+                # plt.gca().spines['top'].set_visible(False)
+                # plt.gca().spines['bottom'].set_visible(False)
+                # plt.gca().spines['left'].set_visible(False)
+                
+                # set yticks to invisible but keep the grid
+                plt.gca().yaxis.set_ticks_position('none') 
+                plt.gca().yaxis.set_tick_params(labelleft=False)  # turn off y tick labels
+                plt.gca().grid(True, axis='y')
+                
+            
+            if i >= (row_num - 1) * 4:
+                plt.xlabel("Part No.")
+                
+        plt.suptitle(f"Batch Analysis of {os.path.basename(self.instance_name).split('.')[0]}", fontsize=16)
+        
+        plt.tight_layout()
+        plt.savefig(f"{out_dir}/batch_height_all.jpg")
+        plt.close()
+        
+        # analysis 2
         plt.figure(dpi=200, figsize=(12, 8))
         plt.suptitle(f"Batch Analysis of {os.path.basename(self.instance_name).split('.')[0]}", fontsize=16)
         # occupied ratio 

@@ -21,6 +21,7 @@
 *.rar
 *.tar
 *.zip
+*.pyc
 
 # Logs and databases #
 ######################
@@ -40,20 +41,19 @@ Thumbs.db
 
 # Folders
 ######################
-joyrl/*
-false/*
-experiment-related-model/*
-tasks/*
-.vscode/*
-tf-logs/*
+joyrl/
+false/
+experiment-related-model/
+tasks/
+.vscode/
+tf-logs/
 
 # Produced/Rendered Files
 *.html
 readme.pdf
-
-# Cpython files 
-__pycache__/*
-slm_model/__pycache__/*
-rl_algorithms/__pycache__/*
 wandb
 solution
+
+__pycache__/
+*.py[cod]
+*$py.class
