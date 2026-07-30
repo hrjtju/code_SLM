@@ -95,6 +95,7 @@ if __name__ == "__main__":
 
     wandb.init(
         project="slmflat-doubledqn",
+        name=args.trial_name,
         config={
             "name": args.trial_name,
             "arch": "flat-legacy-trunk",

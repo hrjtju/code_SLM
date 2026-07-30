@@ -665,6 +665,7 @@ def train(args: Arguments,
 
     history = {"return": [], "energy": [], "loss": [], "grad_norm": [], "epsilon": [], "fail": [],
                "eval": []}
+    best_eval = float("inf")
 
     env = SingleSLMEnvParallel1D(in_path=args.train_dir, phase="Train",
                                  max_part_type=MAX_PART_TYPE, max_batch_num=MAX_BATCH_NUM,
@@ -792,7 +793,25 @@ def train(args: Arguments,
                     evaluate(agent, args, device, test_meter)
                     eval_dict = test_meter.dict_avg("Instances/")
                     log_dict.update(eval_dict)
-                    history["eval"].append((episode_id, test_meter.all_avg()))
+                    eval_energy = test_meter.all_avg()
+                    log_dict["Eval/energy"] = eval_energy
+                    history["eval"].append((episode_id, eval_energy))
+
+                    # keep the best-so-far model, judged on the eval instances
+                    if save_model and eval_energy < best_eval:
+                        best_eval = eval_energy
+                        os.makedirs("./model_params", exist_ok=True)
+                        torch.save(
+                            {
+                                "q_net": agent.q_net.state_dict(),
+                                "obs_rms": agent.obs_rms.state_dict(),
+                                "args": vars(args) if not isinstance(args, dict) else args,
+                                "episode": episode_id,
+                                "eval_energy": eval_energy,
+                            },
+                            f"./model_params/{trial_name}_best.pt",
+                        )
+                    log_dict["Eval/best_energy"] = best_eval
 
                 # T6: a single log call per episode with an explicit step
                 if use_wandb:
@@ -825,6 +844,7 @@ if __name__ == "__main__":
 
     wandb.init(
         project="slmflat-doubledqn",
+        name=args.trial_name,
         config={
             "name": args.trial_name,
             "actions_type": "part-orientation-batch, tensor (executed-action labels)",
