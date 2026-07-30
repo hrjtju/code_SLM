@@ -26,7 +26,7 @@ class SingleSLMEnv(Env):
                  view_shape: Tuple[int, int] = (224, 224), 
                  max_part_type: int = 20,
                  max_orientation_num: int = 7,
-                 seed: float = 0,
+                 seed: float | None = None,
                  ppo: bool = False,
                  **kwargs
                  ):
@@ -45,7 +45,12 @@ class SingleSLMEnv(Env):
             NotImplementedError: If self.phase is not among ["Train", "Test"].
         """
         
-        random.seed(seed)
+        # T11: only seed the *global* RNG when a seed is explicitly requested.
+        # Re-seeding on every reset() (with a value drawn from the same stream)
+        # also re-seeds the RNG used by the replay buffer sampling, which makes
+        # the sampling pattern structurally repeat across episodes.
+        if seed is not None:
+            random.seed(seed)
         
         self.device = device
         
@@ -146,7 +151,7 @@ class SingleSLMEnv(Env):
                           device=self.device,
                           phase=self.phase, 
                           view_shape=self.view_shape, 
-                          seed=random.random()
+                          seed=None
                           )
         elif self.phase == "Test":
             exit(0)
@@ -298,13 +303,15 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
                  max_part_type: int = 20,
                  max_orientation_num: int = 7,
                  max_batch_num: int = 20,
-                 seed: float = 0,
+                 seed: float | None = None,
                  ppo: bool = False,
                  penalty: float = 0,
                  **kwargs
                  ):
         
-        random.seed(seed)
+        # T11: see SingleSLMEnv.__init__ -- do not touch the global RNG unless asked.
+        if seed is not None:
+            random.seed(seed)
         
         self.ppo = ppo
         # print(f"{self.ppo=}")
@@ -318,6 +325,13 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         self.penalty = penalty
         
         self.fail_allocate_num: int = 0
+        
+        # T2: the (part, orientation, batch) triple that was *actually* executed by
+        # the last step(). The action vector handed to step() only defines a
+        # *priority order*; the environment falls back to lower-ranked candidates
+        # when the argmax triple is infeasible, so the learner must be told which
+        # action really happened.
+        self.executed_action: Tuple[int, int, int] | None = None
         
         # randomly pick a json file in the training dir
         # and pack the training data into a class
@@ -385,6 +399,20 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         
         # [n, o]
         feasible_orientations = self.slm_metadata.mask_matrix()
+
+        # T20: fail fast with a readable message. `project_spaces` (used by
+        # `update_mask`) is sized by the *instance*, so `max_orientation_num` smaller
+        # than the instance's orientation count used to blow up much later with a
+        # cryptic broadcasting error.
+        assert feasible_orientations.shape[1] <= self.max_orientation_num, (
+            f"max_orientation_num={self.max_orientation_num} is smaller than the "
+            f"instance's orientation count {feasible_orientations.shape[1]}"
+        )
+        assert feasible_orientations.shape[0] <= self.max_part_type, (
+            f"max_part_type={self.max_part_type} is smaller than the instance's "
+            f"part-type count {feasible_orientations.shape[0]}"
+        )
+
         self.mask_tensor = self.mask_tensor * feasible_orientations[..., None]
     
     def update_mask(self):
@@ -401,6 +429,12 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         if self.parts_info_mtx is None or self.project_spaces is None:
             self.parts_info_mtx = self.slm_metadata.init_state()
             self.project_spaces = self.parts_info_mtx[:, 3::4] * self.parts_info_mtx[:, 4::4]
+            # T20: readable failure instead of a broadcasting RuntimeError below
+            assert self.project_spaces.shape[1] <= self.max_orientation_num, (
+                f"max_orientation_num={self.max_orientation_num} is smaller than the "
+                f"instance's orientation count {self.project_spaces.shape[1]} "
+                f"({self.in_path})"
+            )
             # print(self.parts_info_mtx, self.parts_info_mtx[:, 3::4], self.parts_info_mtx[:, 4::4])
         
         # [num_parts, num_orientations]
@@ -450,7 +484,7 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
                           max_part_type=self.max_part_type,
                           max_orientation_num=self.max_orientation_num,
                           max_batch_num=self.max_batch_num,
-                          seed=random.random(),
+                          seed=None,
                           ppo=self.ppo,
                           penalty=self.penalty
                           )
@@ -459,6 +493,7 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         else:
             raise NotImplementedError
         
+        self.check_state_dim()  # T20
         return self.curr_state, self.load_path
 
     def update_state(self, view: Tensor, part_id: int) -> None:
@@ -495,6 +530,61 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
             action[self.max_part_type: self.max_part_type+self.max_orientation_num],\
             action[self.max_part_type+self.max_orientation_num:]
 
+    @property
+    def action_dim(self) -> int:
+        return self.max_part_type + self.max_orientation_num + self.max_batch_num
+
+    @property
+    def state_dim(self) -> int:
+        """T20: expected flat-state length for the configured max_* dimensions."""
+        return (self.max_batch_num * 3 + 3
+                + self.max_part_type * (3 + 4 * self.max_orientation_num))
+
+    def check_state_dim(self) -> None:
+        """
+        T20: the flat state only has a fixed layout when every `max_*` is >= the
+        instance's own dimensions. Otherwise the observation length silently varies
+        per instance and the replay buffer fails later with an unrelated
+        "stack expects each tensor to be equal size" error.
+        """
+        actual = int(self.curr_state.reshape(-1).shape[0])
+        assert actual == self.state_dim, (
+            f"state length {actual} != expected {self.state_dim} for "
+            f"max_part_type={self.max_part_type}, max_orientation_num="
+            f"{self.max_orientation_num}, max_batch_num={self.max_batch_num}; "
+            f"the max_* settings are too small for instance {self.in_path}"
+        )
+
+    def onehot_action(self, triple: Tuple[int, int, int]) -> Tensor:
+        """
+        T2: build the action vector whose per-head argmax equals `triple`.
+        
+        This is what has to be stored in the replay buffer so that the Q-learning
+        update gathers the value of the action the environment really executed.
+        """
+        part_id, ori_id, batch_id = (int(x) for x in triple)
+        action = torch.zeros(self.action_dim)
+        action[part_id] = 1.0
+        action[self.max_part_type + ori_id] = 1.0
+        action[self.max_part_type + self.max_orientation_num + batch_id] = 1.0
+        return action
+
+    def head_masks(self) -> Tensor:
+        """
+        T18: per-head feasibility marginals of `self.mask_tensor`, laid out like an
+        action vector: `[part_valid (P) | ori_valid (O) | batch_valid (B)]`.
+        
+        The factored Q function maximises each head independently, so these marginals
+        are exactly what is needed to stop the bootstrapped target from maximising
+        over actions that cannot be executed.
+        """
+        m = self.mask_tensor.bool()
+        return torch.concatenate([
+            m.any(dim=-1).any(dim=-1),   # [P]
+            m.any(dim=0).any(dim=-1),    # [O]
+            m.any(dim=0).any(dim=0),     # [B]
+        ], dim=0)
+
     def step(
         self, 
         actions: Tensor
@@ -504,7 +594,7 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
             [part_distribution, orientation_distribution, batch_distribution]
         """
         terminated, truncated = False, False
-        info, reward = None, 0        
+        info, reward = {}, 0        
         
         if isinstance(actions, torch.Tensor):
             part, ori, batch = self.slice_action(actions.detach().cpu())
@@ -514,6 +604,7 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         penalty = 0
         success = False
         self.fail_allocate_num = 0
+        self.executed_action = None
         # print(f"{self.ppo=}")
         
         if not self.ppo:
@@ -533,6 +624,8 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
                         penalty += penalty_tmp
                         
                         if success:
+                            # T2: remember which triple was *really* executed
+                            self.executed_action = (int(part_id), int(ori_id), int(batch_id))
                             self.update_state(view=new_view, part_id=part_id)   
                             
                             # If all parts are allocated, terminate this episode.
@@ -542,6 +635,11 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
                             break
                         else:
                             self.fail_allocate_num += 1
+            
+            # T12: nothing could be placed anywhere -> episode is *truncated*
+            # (a dead end), not terminated.
+            if not success:
+                truncated = True
         else:
             new_view, success, penalty_tmp = self.solution.add_part(part=self.slm_metadata.parts[part], 
                                                                     orientation=ori, 
@@ -549,9 +647,12 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
                                                                     hard=False)
         
             if success:
+                self.executed_action = (int(part), int(ori), int(batch))
                 self.update_state(new_view, part)
                 if self.done():
                     terminated = True
+            else:
+                truncated = True
                     
             penalty = penalty_tmp
         
@@ -560,6 +661,13 @@ class SingleSLMEnvParallel1D(SingleSLMEnv):
         self.last_criterion = criterion
 
         self.update_mask()
+        
+        info = {
+            "executed_action": self.executed_action,
+            "success": success,
+            "fail_allocate_num": self.fail_allocate_num,
+            "penalty": penalty,
+        }
         
         return self.curr_state, reward, terminated, truncated, info
 

@@ -1,541 +1,129 @@
 """
 Ruijie He
 
-Reference: https://hrl.boyuai.com/chapter/2/dqn%E6%94%B9%E8%BF%9B%E7%AE%97%E6%B3%95
+`doubledqn_flat.py` -- legacy single-trunk variant of the flat Double-DQN agent.
 
-* Version: 0.1.0: 20250415, by Ruijie He, Double DQN with prioritized replay buffer
+T16: every learning-side fix (T1-T19, see TODO_RL_FIX.md) lives in
+`doubledqn_dflat.py`. To avoid two diverging copies of the same buggy pipeline, this
+module now *reuses* that implementation and only keeps the legacy network
+architecture (one 683-wide trunk) so that checkpoints trained with this file can
+still be loaded by `test_dqnflat.py`.
 
+* Version: 0.1.0: original implementation
+* Version: 0.2.0: reuse the fixed DoubleDQN from doubledqn_dflat
 """
 
-
 import datetime
-from functools import reduce
 import os
-import random
-import collections
-import heapq
-from tqdm import tqdm
-from typing import List, Literal, Tuple
-import warnings
 import sys
-import argparse
+import warnings
 
-from training_utils.model_utils import DQN_Log, calculate_gradient_norm, init_weights_normal
-
-# Add the slm_model directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 
-import numpy as np
 import torch
 import torch.nn as nn
-from torch import Tensor, narrow
-import torch.nn.functional as F
-from torch.nn.utils import clip_grad_norm_
-import matplotlib.pyplot as plt
+from torch import Tensor
 import wandb
-from slm_model.slm_env import SingleSLMEnvParallel1D
-from training_utils.utils import IntstanceAvgMeter
 
+from doubledqn_dflat import (  # noqa: F401  (re-exported for backwards compatibility)
+    Arguments,
+    ClassicalReplayBuffer,
+    DoubleDQN as _DoubleDQNBase,
+    PrioritizedReplayBuffer,
+    UniformReplayBuffer,
+    evaluate,
+    parse_args,
+    repack,
+    state_dim,
+    to_device,
+    train,
+)
 
-def to_device(x, device):
-    try:
-        x.to(device)
-    except AttributeError:
-        return x
-    
-    return x.to(device)
-
-def repack(t: Tuple):
-    return torch.stack(t, dim=0)
-
-from dataclasses import dataclass, field
-from typing import Any
-
-@dataclass(order=True)
-class PrioritizedItem:
-    priority: int
-    item: Tuple[Tuple[Tensor, Tensor, Tensor, Tensor, Tensor], int]=field(compare=False)
-
-
-class Arguments:
-    mask: bool
-    sample: bool
-    lr: float
-    penalty: float
-    num_episodes: int
-    hidden_dim: int
-    gamma: float
-    epsilon: float
-    target_update: int
-    buffer_size: int
-    minimal_size: int
-    batch_size: int
-    max_part_type: int
-    max_orientation_num: int
-    max_batch_num: int
-    clip_grad_norm: float
-    train_dir: str
-    eval_dir: str
-    trial_name: str
-    
-    
-class PrioritizedReplayBuffer:
-    """
-    Replay Buffer of tuples for DQN training
-    
-    1. 按照td-error的优先级进入，只保存较大td-error的条目
-    2. 根据时效性，周期删除 10% 较老的条目
-    """
-    def __init__(self, capacity: int) -> None:
-        self.buffer: List[PrioritizedItem] = []
-        self.num = 0
-        self.capacity = capacity
-        # self.seen = set()
-        self.in_num = 0
-    
-    # def hash_(self, tup: Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]) -> int:
-    #     return hash(tuple(torch.concat(tup, dim=0).reshape(-1).detach().numpy()))
-    
-    #! update to priority queue, using -|td_error| as priority
-    def add(self, state: Tensor, action: Tensor, reward: Tensor, next_state: Tensor, done: Tensor, abs_td_error: float):
-        priority = abs_td_error
-        tup = (state, action, reward, next_state, done)
-        
-        self.num += 1
-        self.in_num += 1
-        
-        # if self.hash_(tup) in self.seen:
-        #     for i in self.buffer:
-        #         if i.item == tup:
-        #             print(f"\nHash hit: {i.priority:.2f} --> {priority:.2f}")
-        #             i.priority = priority
-        #             i.item[1] = self.in_num
-        #             heapq.heapify(self.buffer)
-        #             break
-        # else:
-        self.num += 1
-        
-        # 先丢已经在里面的，这样就不会出现前期td-err大的一直占在里面，后面的进不来的情况
-        if self.num > self.capacity:
-            self.num = self.capacity
-            pop = heapq.heappop(self.buffer)
-            # self.seen.remove(self.hash_(pop.item[0]))
-            
-            if random.random() < 0.1:
-                print("\nRemoving old history ...")
-                self.buffer = sorted(self.buffer, key=lambda x:x.item[1])[self.capacity//10:]
-                self.num = len(self.buffer)
-                heapq.heapify(self.buffer)
-        
-        heapq.heappush(self.buffer, PrioritizedItem(priority=priority, item=(tup, self.in_num)))
-        # self.seen.add(self.hash_(tup))
-    
-    def sample(self, batch_size):
-        transitions = [i.item[0] for i in random.sample((self.buffer), batch_size)]
-        state, action, reward, next_state, done = zip(*transitions)
-        
-        return repack(state), repack(action), reward, repack(next_state), done
-    
-    def size(self):
-        return len(self.buffer)
-    
-    def get_priority_dist(self) -> Tuple[float, float]:
-        arr = np.array([i.priority for i in self.buffer])
-        return arr.mean(), arr.std()
-        
-
-class ClassicalReplayBuffer:
-    """
-    Replay Buffer of tuples for DQN training
-    """
-    def __init__(self, capacity: int) -> None:
-        self.buffer = collections.deque(maxlen=capacity)
-    
-    def add(self, state, action, reward, next_state, done):
-        self.buffer.append(
-            (state, action, reward, next_state, done)
-        )
-    
-    def sample(self, batch_size):
-        transitions = random.sample(self.buffer, batch_size)
-        state, action, reward, next_state, done = zip(*transitions)
-        
-        return repack(state), repack(action), reward, repack(next_state), done
-
-    def size(self):
-        return len(self.buffer)
-
-    
-    def sample(self, batch_size):
-        transitions = [i.item for i in random.sample((self.buffer), batch_size)]
-        state, action, reward, next_state, done = zip(*transitions)
-        
-        return repack(state), repack(action), reward, repack(next_state), done
-
-    def size(self):
-        return self.num
 
 class QNet(nn.Module):
-    version = "0.1.0"
-    
-    def __init__(self, 
-                 max_part: int = 20, 
-                 max_ori: int = 7, 
-                 device: torch.device = "cpu"
+    """Legacy architecture: a single MLP over the whole flat state."""
+
+    version = "0.2.0"
+
+    def __init__(self,
+                 max_part: int = 20,
+                 max_ori: int = 7,
+                 max_batch: int = 20,
+                 device: torch.device = "cpu",
                  ) -> None:
         super(QNet, self).__init__()
-        
+
         self.max_part = max_part
         self.max_ori = max_ori
+        self.max_batch = max_batch
         self.device = device
-        
-        # split into two heads
+
+        # T9: 683 / 47 used to be hard-coded here; both are derived now.
+        self.in_dim = state_dim(max_part, max_ori, max_batch)
+        self.out_dim = max_part + max_ori + max_batch
+
         self.policy = nn.Sequential(
-            nn.Linear(in_features=683, out_features=512),
+            nn.Linear(in_features=self.in_dim, out_features=512),
             nn.LeakyReLU(inplace=True),
             nn.Linear(in_features=512, out_features=256),
             nn.LeakyReLU(inplace=True),
             nn.Linear(in_features=256, out_features=128),
             nn.LeakyReLU(inplace=True),
             nn.LayerNorm(128),
-            nn.Linear(in_features=128, out_features=47),
-            # nn.Softmax(dim=-1) #! 按道理来说应该分组 softmax，或者直接换成三个头
-        )
-    
-    
-    def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
-        dist = self.policy(x)        
-        return dist
-        
-class DoubleDQN:
-    def __init__(self, 
-                 device: torch.device,
-                 args: Arguments = None,
-                 ) -> None:
-        
-        self.max_part = args.max_part_type
-        self.max_ori = args.max_orientation_num
-        self.max_batch = args.max_batch_num
-        
-        self.gamma = args.gamma
-        self.epsilon = args.epsilon
-        self.target_update = args.target_update
-        self.clip_grad_norm = args.clip_grad_norm
-        
-        self.update_count = 0
-        self.device = device
-        
-        self.q_net = QNet(self.max_part, self.max_ori, self.device).to(self.device)
-        self.q_net.apply(init_weights_normal)
-        
-        self.target_q_net = QNet(self.max_part, self.max_ori, self.device).to(self.device)
-        self.q_net.apply(init_weights_normal)
-        
-        self.optimizer = torch.optim.Adam(self.q_net.parameters(), lr=args.lr)
-        
-        self.mask = args.mask
-        self.sample = args.sample
-        
-    def take_action(self, state: torch.Tensor, curr_mask: torch.Tensor, test: bool = False):
-        
-        # TODO: Check the two branches of these actions
-        if not test and np.random.random() < self.epsilon:
-            action = (
-                torch.randn(self.max_part+self.max_ori+self.max_batch).abs() + 0.01
-                ).to(self.device)
-            
-            if np.random.random() < self.epsilon:
-                self.epsilon = max(0.05, self.epsilon * 0.99999)
-        else:
-            action = self.q_net(state)
-        
-        part_d, ori_d, batch_d = self.split_actions(action)
-        
-        if self.mask:
-            part_d[~torch.sum(curr_mask, dim=(-1, -2)).bool()] = -torch.inf
-            ori_d[~torch.sum(curr_mask[part:=part_d.argmax(-1)], dim=-1).bool()] = -torch.inf
-            batch_d[~curr_mask[part, ori_d.argmax(-1)].bool()] = -torch.inf
-        
-        # TODO: Check the two branches of these actions
-        if self.sample and test:
-            part_d1 = torch.zeros_like(part_d).to(self.device)
-            ori_d1 = torch.zeros_like(ori_d).to(self.device)
-            batch_d1 = torch.zeros_like(batch_d).to(self.device)
-            
-            part_id = torch.distributions.Categorical(F.softmax(part_d)).sample().item()
-            ori_id = torch.distributions.Categorical(F.softmax(ori_d)).sample().item()
-            batch_id = torch.distributions.Categorical(F.softmax(batch_d)).sample().item()
-            
-            part_d1[0, part_id] = 1.0
-            ori_d1[0, ori_id] = 1.0
-            batch_d1[0, batch_id] = 1.0
-            
-            part_d = part_d1
-            ori_d = ori_d1
-            batch_d = batch_d1
-        
-        return torch.concat([part_d, ori_d, batch_d])
-
-    def split_actions(self, a: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
-        """
-        Split action tensor into part, orientation and batch part.
-        """
-        # a: [batch+_size, MAX_PART_TYPE + MAX_ORIENTATION_NUM + MAX_BATCH_NUM]
-        
-        return (
-            a.narrow(-1, 0, self.max_part),
-            a.narrow(-1, self.max_part, self.max_ori),
-            a.narrow(-1, self.max_part+self.max_ori, self.max_batch)
-        )
-    
-    def batch_kronecker_product_flatten(self, tensors) -> Tensor:
-        return reduce(lambda x,y:torch.einsum("ia,ib->iab", x.flatten(1), y.flatten(1)).flatten(-1), 
-                      tensors)
-    
-    def get_td_target(self, state, action, reward, next_state, done, test=False):
-        net_state_output = self.q_net(state)
-        splitted_max_actions = self.split_actions(net_state_output)
-        splitted_done_actions = self.split_actions(action)
-        
-        max_action_sets = self.q_net(next_state)
-        target_action_sets = self.target_q_net(next_state)
-        splitted_max_actions_next = self.split_actions(max_action_sets)
-        splitted_max_actions_target = self.split_actions(target_action_sets)
-        
-        q_values = sum(map(lambda x:x[0].gather(1, x[1].max(1)[1].view(-1, 1)), zip(splitted_max_actions, splitted_done_actions)))
-        max_next_q = sum(map(lambda x:x[0].gather(1, x[1].max(1)[1].view(-1, 1)), zip(splitted_max_actions_target, splitted_max_actions_next)))
-        
-        q_targets = reward + self.gamma * max_next_q * (1 - done)
-        
-        if test:
-            return q_values.detach(), q_targets.detach()
-        else:
-            return q_values, q_targets.detach()
-    
-    def update(self, transition_dict) -> DQN_Log:
-        states = transition_dict["states"]
-        actions = transition_dict["actions"]
-        rewards = torch.tensor(transition_dict["rewards"]).to(self.device)
-        next_states = transition_dict["next_states"]
-        dones = torch.tensor(transition_dict["dones"], dtype=torch.float32).to(self.device)
-        
-        q_values, q_targets = self.get_td_target(states, actions, rewards, next_states, dones)
-        
-        dqn_loss = torch.mean(F.mse_loss(q_values, q_targets))
-        
-        self.optimizer.zero_grad()
-        
-        dqn_loss.backward()
-        
-        clip_grad_norm_(self.q_net.parameters(), self.clip_grad_norm)
-        grad_norm = calculate_gradient_norm(self.q_net)
-        
-        self.optimizer.step()
-        
-        if (self.update_count+1) % self.target_update == 0:
-            self.target_q_net.load_state_dict(self.q_net.state_dict())
-        
-        self.update_count += 1
-        
-        return DQN_Log(
-            loss=dqn_loss.item(),
-            grad_norm=grad_norm
+            nn.Linear(in_features=128, out_features=self.out_dim),
         )
 
+    def forward(self, x: Tensor) -> Tensor:
+        if x.ndim == 1:
+            x = x.unsqueeze(0)  # T3: always return a [B, A] tensor
+        return self.policy(x)
 
 
-def parse_args() -> Arguments:
-    
-    parser = argparse.ArgumentParser(description="DQN training")
-    
-    parser.add_argument("--mask", action='store_true', help="Use mask for action selection")
-    parser.add_argument("--sample", action='store_true', help="you shall never use this here")
-    parser.add_argument("--lr", type=float, default=0.01, help="Learning rate")
-    parser.add_argument("--penalty", type=float, default=0.1, help="Penalty for invalid actions")
-    parser.add_argument("--num_episodes", type=int, default=100000, help="Number of episodes")
-    parser.add_argument("--hidden_dim", type=int, default=128, help="Hidden dimension")
-    parser.add_argument("--gamma", type=float, default=1.00, help="Discount factor")
-    parser.add_argument("--epsilon", type=float, default=0.5, help="Epsilon for epsilon-greedy action selection")
-    parser.add_argument("--target_update", type=int, default=5, help="Target network update frequency")
-    parser.add_argument("--buffer_size", type=int, default=50000, help="Replay buffer size")
-    parser.add_argument("--minimal_size", type=int, default=600, help="Minimal size for sampling")
-    parser.add_argument("--batch_size", type=int, default=256, help="Batch size for training")
-    parser.add_argument("--max_part_type", type=int, default=20, help="Max part type")
-    parser.add_argument("--max_orientation_num", type=int, default=7, help="Max orientation number")
-    parser.add_argument("--max_batch_num", type=int, default=20, help="Max batch number")
-    parser.add_argument("--clip_grad_norm", type=float, default=100.0, help="Gradient clipping norm")
-    parser.add_argument("--train_dir", type=str, default="./instances_json/", help="Directory for training instances")
-    parser.add_argument("--eval_dir", type=str, default="./instances_json/", help="Directory for testing instances")
-    parser.add_argument("--trial_name", type=str, default="None", help="Trial name for saving model")
-    
-    return parser.parse_args()
+class DoubleDQN(_DoubleDQNBase):
+    """The fixed agent with the legacy trunk."""
+
+    def build_qnet(self) -> nn.Module:
+        return QNet(self.max_part, self.max_ori, self.max_batch, self.device)
+
 
 if __name__ == "__main__":
-    
+
     warnings.filterwarnings("ignore")
-    
+
     args = parse_args()
-    
-    lr = args.lr
-    num_episodes = args.num_episodes
-    hidden_dim = args.hidden_dim
-    gamma = args.gamma
-    epsilon = args.epsilon
-    target_update = args.target_update
-    buffer_size = args.buffer_size
-    minimal_size = args.minimal_size
-    batch_size = args.batch_size
-    clip_grad_norm = args.clip_grad_norm
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    MAX_PART_TYPE = args.max_part_type
-    MAX_ORIENTATION_NUM = args.max_orientation_num
-    MAX_BATCH_NUM = args.max_batch_num
-    
+
     wandb.init(
         project="slmflat-doubledqn",
         config={
-            "name": (trial_name:=args.trial_name),
-            "actions_type": "part-orientation-batch, tensor",
+            "name": args.trial_name,
+            "arch": "flat-legacy-trunk",
+            "actions_type": "part-orientation-batch, tensor (executed-action labels)",
             "criterion": "energy-diff",
             "lr": args.lr,
             "num_episodes": args.num_episodes,
-            "hidden_dim": args.hidden_dim,
             "gamma": args.gamma,
             "epsilon_start": args.epsilon,
+            "epsilon_final": args.epsilon_final,
+            "epsilon_decay_steps": args.epsilon_decay_steps,
             "target_update": args.target_update,
             "buffer_size": args.buffer_size,
             "minimal_size": args.minimal_size,
             "batch_size": args.batch_size,
-            "device": "cuda" if torch.cuda.is_available() else "cpu",
+            "device": str(device),
             "max_part_type": args.max_part_type,
             "max_orientation_num": args.max_orientation_num,
             "max_batch_num": args.max_batch_num,
             "clip_grad_norm": args.clip_grad_norm,
             "penalty": args.penalty,
+            "reward_scale": args.reward_scale,
+            "per": args.per,
+            "obs_norm": args.obs_norm,
             "train_dir": args.train_dir,
             "eval_dir": args.eval_dir,
             "mask": args.mask,
-            "time": datetime.datetime.now().strftime(r"%Y-%m-%d %H:%M:%S")
+            "time": datetime.datetime.now().strftime(r"%Y-%m-%d %H:%M:%S"),
         },
     )
-    replay_buffer = PrioritizedReplayBuffer(buffer_size)
-    
-    agent = DoubleDQN(device, args)
-    
-    return_meter = IntstanceAvgMeter(window_size=200)
-    energy_meter = IntstanceAvgMeter(window_size=200)
-    loss_meter = IntstanceAvgMeter(window_size=2000)
-    grad_norm_meter = IntstanceAvgMeter(window_size=2000)
-    
-    test_meter = IntstanceAvgMeter(window_size=10)
-    
-    env = SingleSLMEnvParallel1D(in_path=args.train_dir, phase="Train",
-                                 max_part_type=MAX_PART_TYPE, max_batch_num=MAX_BATCH_NUM, max_orientation_num=MAX_ORIENTATION_NUM,
-                                 penalty=args.penalty)
-    env_name = env.name
-    
-    for i in range(10):
-        with tqdm(total=int(num_episodes/10), desc=f"Iteration {i}", leave=False, position=0) as pbar:
-            for i_episode in range(int(num_episodes/10)):
-                episode_return = 0
-                state, instance = env.reset()
-                done = False
-                
-                while not done:
-                    
-                    action = agent.take_action(state.to(device), env.mask_tensor.to(device), test=False)
-                    next_state, reward, terminate, truncate, _ = env.step(action)
-                    done = terminate or truncate
-                    
-                    # TODO: Calculate TD_error
-                    q_value, q_target = agent.get_td_target(state.to(device).reshape(1, -1), 
-                                                            action.to(device).reshape(1, -1), 
-                                                            torch.tensor([[reward]], device=device), 
-                                                            next_state.to(device).reshape(1, -1), 
-                                                            torch.tensor([[done]], device=device).float(),
-                                                            test=True
-                                                            )
-                        
-                    td_err = torch.sum(torch.abs(q_value - q_target)).item()
-                    
-                    if any((not isinstance(i, torch.Tensor)) for i in [state, action, next_state]):
-                        ...
-                        
-                    replay_buffer.add(*list(map(lambda x: to_device(x, "cpu").reshape(-1), [state, action, torch.Tensor([reward]), next_state, torch.Tensor([done])])), td_err)
-                    
-                    state = next_state
-                    episode_return += reward
-                    
-                    if replay_buffer.size() > minimal_size:
-                        b_s, b_a, b_r, b_ns, b_d = replay_buffer.sample(batch_size)
-                        # print(b_s.shape)
-                        tmp_log = agent.update(
-                            transition_dict=dict(
-                                states = to_device(b_s, device),
-                                actions = to_device(b_a, device),
-                                next_states = to_device(b_ns, device),
-                                rewards = to_device(b_r, device),
-                                dones = to_device(b_d, device)
-                            )
-                        )
-                        
-                        loss_meter.update(instance, tmp_log.loss)
-                        grad_norm_meter.update(instance, tmp_log.grad_norm)
-                        
-                return_meter.update(instance, episode_return)
-                energy_meter.update(instance, env.solution.calculate_energy())
 
-                episode_id = int(num_episodes / 10 * i + i_episode + 1)
-                
-                pbar.set_postfix({
-                    "episode": f"{episode_id:4d}",
-                    "return": f"{f'{return_meter.all_avg():.6e}':12s}",
-                    "energy": f"{f'{energy_meter.all_avg():.6e}':12s}",
-                    "loss": f"{f'{loss_meter.all_avg():.6e}':12s}",
-                    "grad_norm": f"{f'{grad_norm_meter.all_avg():.6e}':12s}",
-                })
-                
-                td_err_mean, td_err_std = replay_buffer.get_priority_dist()
-                
-                wandb.log({"AvgEnergy/mean": energy_meter.all_avg(),
-                            "AvgEnergy/max": energy_meter.all_max_avg(),
-                            "AvgEnergy/min": energy_meter.all_min_avg(),
-                            "AvgReturn/mean": return_meter.all_avg(),
-                            "AvgReturn/max": return_meter.all_max_avg(),
-                            "AvgReturn/min": return_meter.all_min_avg(),
-                            "epsilon": agent.epsilon, 
-                            "DQN/loss": loss_meter.all_avg(),
-                            "DQN/grad_norm": grad_norm_meter.all_avg(),
-                            "DQN/fail_allocate_num": env.fail_allocate_num, # TODO: Check failed allocation num, and its relation to loss
-                            "ReplayBuffer/TD_Error_Mean": td_err_mean,
-                            "ReplayBuffer/TD_Error_Std": td_err_std,
-                          }, step=episode_id)
-                
-                if i_episode % 500 == 0:
-                    
-                    # test model with greedy action-selection
-                    for instance_f in filter(lambda x:".json" in x, os.listdir(args.eval_dir)):
-                        test_env = SingleSLMEnvParallel1D(in_path=f"{args.eval_dir}/{instance_f}", phase="Test",
-                                    max_part_type=MAX_PART_TYPE, max_batch_num=MAX_BATCH_NUM, max_orientation_num=MAX_ORIENTATION_NUM)
-                        
-                        state_, instance_ = test_env.curr_state, test_env.in_path
-                        done = False
-                        
-                        with torch.no_grad():
-                            while not done:
-                                action = agent.take_action(state_.to(device), test_env.mask_tensor.to(device), test=True)
-                                next_state, _, terminate, truncate, _ = test_env.step(action)
-                                done = terminate or truncate
-                                
-                                state = next_state
-                            
-                            test_meter.update(os.path.basename(instance_), test_env.solution.calculate_energy())
-                    
-                    wandb.log(test_meter.dict_avg("Instances/"))
-                            
-                            
-                pbar.update(1)
-        
-        now_str = datetime.datetime.now().strftime(r"%Y-%m-%d_%H-%M-%S")
-        torch.save(agent.q_net.state_dict(), f"./model_params/{trial_name}_{i}_{now_str}.pt")
+    train(args, device, use_wandb=True, agent=DoubleDQN(device, args))

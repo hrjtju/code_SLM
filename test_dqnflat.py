@@ -62,6 +62,9 @@ parser.add_argument("--test_num", type=int, default=10, help="Test number for ge
 parser.add_argument("--early_stop", type=bool, default=False, help="Choose to early stop or not under epsilon-greedy action selection")
 
 parser.add_argument("--mask", type=bool, default=False, help="Use mask for action selection")
+parser.add_argument("--epsilon_final", type=float, default=0.05, help="Final epsilon (unused at test time)")
+parser.add_argument("--epsilon_decay_steps", type=int, default=50000, help="Unused at test time")
+parser.add_argument("--obs_norm", action="store_true", help="Normalize observations (auto-disabled for legacy ckpts)")
 parser.add_argument("--lr", type=float, default=0.01, help="Learning rate")
 parser.add_argument("--penalty", type=float, default=0.1, help="Penalty for invalid actions")
 parser.add_argument("--num_episodes", type=int, default=100000, help="Number of episodes")
@@ -90,7 +93,7 @@ target_update = 5
 buffer_size = 50000
 minimal_size = 600
 batch_size = 256
-device = torch.device("cuda")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 MAX_PART_TYPE = 20
 MAX_ORIENTATION_NUM = 7
@@ -100,7 +103,8 @@ replay_buffer = PrioritizedReplayBuffer(buffer_size)
 
 agent = DoubleDQN(device, args)
 
-agent.q_net.load_state_dict(torch.load(args.load_path))
+# T1/T16: tolerant loader -- handles both the new checkpoint dict and a bare state_dict
+agent.load_checkpoint(args.load_path)
 agent.q_net.to(device)
 torch.compile(agent.q_net)
 agent.q_net.eval()
@@ -137,7 +141,7 @@ for _ in range(args.test_num if (args.mode != "greedy") else 1):
                     next_state, _, terminate, truncate, _ = test_env.step(action)
                     done = terminate or truncate
                     
-                    state = next_state
+                    state_ = next_state  # T6: was `state = next_state` (agent never saw progress)
                     
                     # early stop if the energy is already HIGHER than the best solution
                     if len(results) > 0 and args.early_stop and results[-1] < test_env.solution.calculate_energy():
