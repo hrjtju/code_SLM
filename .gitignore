@@ -56,4 +56,7 @@ solution
 
 __pycache__/
 *.py[cod]
-*$py.classlogs/
+*$py.class
+
+# 训练日志
+logs/
